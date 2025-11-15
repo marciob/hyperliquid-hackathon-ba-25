@@ -434,6 +434,27 @@ contract LoopGuardVault is ReentrancyGuard {
     // View helpers for frontend
     // -----------------------------------------------------------------------
 
+    /// @notice Compact status for frontend dashboards
+    function getVaultStatus()
+        external
+        view
+        returns (
+            uint256 totalShares_,
+            uint256 collateralPrincipal_,
+            uint256 debtPrincipal_,
+            uint256 totalCollateralBase,
+            uint256 totalDebtBase,
+            uint256 hf
+        )
+    {
+        totalShares_ = totalShares;
+        collateralPrincipal_ = collateralPrincipal;
+        debtPrincipal_ = debtPrincipal;
+        (totalCollateralBase, totalDebtBase, , , , hf) = pool.getUserAccountData(
+            address(this)
+        );
+    }
+
     /// @notice Current health factor of the vault on HypurrFi
     function getHealthFactor() external view returns (uint256) {
         (, , , , , uint256 hf) = pool.getUserAccountData(address(this));
