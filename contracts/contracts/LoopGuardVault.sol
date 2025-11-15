@@ -16,12 +16,14 @@ contract LoopGuardVault is ReentrancyGuard {
     event Deposited(
         address indexed user,
         uint256 amountIn,
-        uint256 sharesMinted
+        uint256 sharesMinted,
+        uint256 hfAfter
     );
     event Withdrawn(
         address indexed user,
         uint256 sharesBurned,
-        uint256 amountOutUBTC
+        uint256 amountOutUBTC,
+        uint256 hfAfter
     );
     event Rebalanced(
         uint256 hfBefore,
@@ -148,21 +150,16 @@ contract LoopGuardVault is ReentrancyGuard {
         collateralPrincipal = prevCollateralPrincipal + amountIn;
 
         // 3) Compute how much debt we can safely take
-        (
-            uint256 totalCollateralBase,
-            uint256 totalDebtBase,
-            uint256 availableBorrowsBase,
-            ,
-            ,
-            uint256 hfBefore
-        ) = pool.getUserAccountData(address(this));
-
-        // Basic sanity: we should be above 1.0 before looping
-        require(hfBefore > 1e18, "HF too low before loop");
+        (, , uint256 availableBorrowsBase, , , uint256 hfBefore) = pool
+            .getUserAccountData(address(this));
 
         // Hypurr base currency is USD-like; assume USDXL ~ 1 base unit
         uint256 borrowAmount = (availableBorrowsBase * BORROW_BPS) /
             BPS_DENOMINATOR;
+        // If HF is at/below 1 after deposit, do not borrow; allow deposit-only to improve safety
+        if (hfBefore <= 1e18) {
+            borrowAmount = 0;
+        }
 
         if (borrowAmount > 0) {
             // 4) Borrow USDXL
@@ -215,14 +212,16 @@ contract LoopGuardVault is ReentrancyGuard {
         totalShares = _totalShares + sharesToMint;
         balanceOf[msg.sender] += sharesToMint;
 
-        // 8) HF post-condition: stay comfortably safe
+        // 8) HF post-condition: only enforce soft floor when we borrowed (increased risk)
         (, , , , , uint256 hfAfter) = pool.getUserAccountData(address(this));
-        require(
-            hfAfter >= hfSoftFloor && hfAfter > 1e18,
-            "HF below soft floor"
-        );
+        if (borrowAmount > 0) {
+            require(
+                hfAfter >= hfSoftFloor && hfAfter > 1e18,
+                "HF below soft floor"
+            );
+        }
 
-        emit Deposited(msg.sender, amountIn, sharesToMint);
+        emit Deposited(msg.sender, amountIn, sharesToMint, hfAfter);
     }
 
     /// @notice Withdraw by burning shares; unwinds proportional part of position (approx)
@@ -234,14 +233,8 @@ contract LoopGuardVault is ReentrancyGuard {
         require(userShares >= shares, "insufficient shares");
         require(_totalShares > 0, "no shares");
 
-        (
-            uint256 totalCollateralBase,
-            uint256 totalDebtBase,
-            ,
-            ,
-            ,
-            uint256 hfBefore
-        ) = pool.getUserAccountData(address(this));
+        (uint256 totalCollateralBase, uint256 totalDebtBase, , , , ) = pool
+            .getUserAccountData(address(this));
 
         uint256 fractionBps = (shares * BPS_DENOMINATOR) / _totalShares;
 
@@ -330,20 +323,14 @@ contract LoopGuardVault is ReentrancyGuard {
         (, , , , , uint256 hfAfter) = pool.getUserAccountData(address(this));
         require(hfAfter >= 1e18, "HF < 1 after withdraw");
 
-        emit Withdrawn(msg.sender, shares, userAmountOut);
+        emit Withdrawn(msg.sender, shares, userAmountOut, hfAfter);
     }
 
     /// @notice Permissionless deleverage when HF is below configured bands
     /// Only ever reduces risk; reverts if HF_after < HF_before
     function rebalance() external nonReentrant {
-        (
-            uint256 totalCollateralBase,
-            uint256 totalDebtBase,
-            ,
-            ,
-            ,
-            uint256 hfBefore
-        ) = pool.getUserAccountData(address(this));
+        (, uint256 totalDebtBase, , , , uint256 hfBefore) = pool
+            .getUserAccountData(address(this));
 
         require(totalDebtBase > 0, "no debt");
 
@@ -368,7 +355,10 @@ contract LoopGuardVault is ReentrancyGuard {
         if (deleverageBps > maxWithdrawBps) {
             deleverageBps = maxWithdrawBps;
         }
-        require(deleverageBps > 0, "nothing to deleverage");
+        if (deleverageBps == 0) {
+            // Nothing safe to do; make it a no-op
+            return;
+        }
 
         uint256 ctPrincipal = collateralPrincipal;
         uint256 collateralToWithdraw = (ctPrincipal * deleverageBps) /
@@ -387,6 +377,10 @@ contract LoopGuardVault is ReentrancyGuard {
             ? (ubtcAfter - ubtcBefore)
             : returned;
 
+        require(
+            ubtcFromPool >= collateralToWithdraw,
+            "rebalance withdraw underflow"
+        );
         collateralPrincipal = ctPrincipal - collateralToWithdraw;
 
         // 2) Swap *all* withdrawn UBTC to USDXL
