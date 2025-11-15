@@ -141,6 +141,13 @@ contract LoopGuardVault is ReentrancyGuard {
         uint256 prevCollateralPrincipal = collateralPrincipal;
         uint256 _totalShares = totalShares;
 
+        // 0) Snapshot HF BEFORE this deposit to decide if we allow new leverage
+        // If HF <= 1 and there is existing debt, treat vault as stressed and do NOT borrow more.
+        (, , , , , uint256 hfBeforeDeposit) = pool.getUserAccountData(
+            address(this)
+        );
+        bool stressed = (hfBeforeDeposit <= 1e18 && hfBeforeDeposit != 0);
+
         // 1) Pull UBTC from user
         _safeTransferFrom(collateral, msg.sender, address(this), amountIn);
 
@@ -149,15 +156,17 @@ contract LoopGuardVault is ReentrancyGuard {
         pool.supply(collateral, amountIn, address(this), REFERRAL_CODE);
         collateralPrincipal = prevCollateralPrincipal + amountIn;
 
-        // 3) Compute how much debt we can safely take
-        (, , uint256 availableBorrowsBase, , , uint256 hfBefore) = pool
-            .getUserAccountData(address(this));
+        // 3) Compute how much debt we can safely take AFTER the deposit
+        (, , uint256 availableBorrowsBase, , , ) = pool.getUserAccountData(
+            address(this)
+        );
 
         // Hypurr base currency is USD-like; assume USDXL ~ 1 base unit
         uint256 borrowAmount = (availableBorrowsBase * BORROW_BPS) /
             BPS_DENOMINATOR;
-        // If HF is at/below 1 after deposit, do not borrow; allow deposit-only to improve safety
-        if (hfBefore <= 1e18) {
+
+        // If we were in a stressed state (HF <= 1 before deposit), this tx is deposit-only.
+        if (stressed) {
             borrowAmount = 0;
         }
 
@@ -212,7 +221,7 @@ contract LoopGuardVault is ReentrancyGuard {
         totalShares = _totalShares + sharesToMint;
         balanceOf[msg.sender] += sharesToMint;
 
-        // 8) HF post-condition: only enforce soft floor when we borrowed (increased risk)
+        // 8) HF post-condition: only enforce soft floor when we actually borrowed
         (, , , , , uint256 hfAfter) = pool.getUserAccountData(address(this));
         if (borrowAmount > 0) {
             require(
