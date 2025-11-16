@@ -1,6 +1,6 @@
 import { network } from "hardhat";
 
-const VAULT_ADDRESS = "0xYOUR_LOCAL_VAULT_ADDRESS_HERE";
+const VAULT_ADDRESS = "0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E";
 
 async function main() {
   const { ethers } = await network.connect();
