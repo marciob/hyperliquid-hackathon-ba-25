@@ -28,9 +28,14 @@ export default {
       boxShadow: {
         "mint-glow": "0 0 24px rgba(186, 252, 226, 0.25)",
         "mint-glow-sm": "0 0 16px rgba(186, 252, 226, 0.18)",
+        "sky-glow": "0 0 28px rgba(198, 239, 255, 0.25)",
+        "yellow-glow": "0 0 28px rgba(247, 239, 154, 0.25)",
+        "pink-glow": "0 0 28px rgba(249, 168, 212, 0.25)",
+        "panel-soft": "0 10px 30px rgba(0,0,0,0.35)",
       },
       borderRadius: {
         xl: "0.9rem",
+        "2xl": "1.25rem",
       },
     },
   },
