@@ -75,10 +75,9 @@ contract LoopGuardVault is ReentrancyGuard {
     uint256 public totalShares;
     mapping(address => uint256) public balanceOf;
 
-    /// @notice Approximate principal tracking (ignores interest / yield).
+    /// @notice Approximate principal tracking (ignores interest / yield). Principal UBTC supplied by the vault into HypurrFi.
     /// @dev These are NOT exact NAV. Frontends should prefer HypurrFi base data
     ///      from getVaultAccountData() when computing real-time PnL / HF / TVL.
-    /// @notice Principal UBTC supplied by the vault into HypurrFi (ignores interest)
     uint256 public collateralPrincipal;
 
     /// @notice Principal USDXL debt tracked by the vault (ignores interest accrual, but subtracts real repays)
