@@ -80,6 +80,10 @@ From repo root:
 3. Start the UI, deposit a tiny amount (e.g., 0.001 HYPE). Toggle “Borrow (no swap)” ~5% to show leverage. Use Rebalance if needed.
 4. (Optional) Run the Polymarket guard and open the dashboard tab to view the risk card.
 
+Demo video
+
+- https://drive.google.com/drive/folders/1r0XTHFqze3lzxDvFCDjCaAsuLXcUnRUA
+
 Polymarket Macro Guard – quick start
 
 Prereqs
