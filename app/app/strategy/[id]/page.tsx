@@ -30,11 +30,11 @@ function Overview({ s }: { s: any }) {
               >
                 ⓘ
               </span>
-            </div>
+        </div>
             <div className="mt-1 text-base text-text-main">
-              <span className="text-brand-sky">target {s.hfTarget.toFixed(1)}</span> · {s.hfBandMin.toFixed(1)}–{s.hfBandMax.toFixed(1)}
-            </div>
+            <span className="text-brand-sky">target {s.hfTarget.toFixed(1)}</span> · {s.hfBandMin.toFixed(1)}–{s.hfBandMax.toFixed(1)}
           </div>
+        </div>
           <div className="rounded-2xl p-4" style={{ backgroundColor: "#C6EFFF20", border: "1px solid #C6EFFF40" }}>
             <div className="text-sm font-semibold text-brand-sky">Who is it for?</div>
             <div className="mt-1 text-sm text-text-subtle">Users who want controlled leverage with auto‑guard rails.</div>
@@ -49,7 +49,7 @@ function Overview({ s }: { s: any }) {
             strategyName={`${s.name}${s.variant ? ` (${s.variant})` : ""}`}
             riskSummary={`Risk: ${s.riskLevel} · HF band: ${s.hfBandMin}-${s.hfBandMax}`}
           />
-        </div>
+          </div>
       </section>
 
       <section className="rounded-3xl border border-[#F9A8D420] bg-surface p-6 shadow-[0_0_16px_rgba(249,168,212,0.16)]">

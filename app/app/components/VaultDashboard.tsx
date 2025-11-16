@@ -16,6 +16,16 @@ export default function VaultDashboard() {
   const hfSoft = thresholds.data.hfSoftFloor;
   const canRebalance = Boolean(hf && hfSoft && hf < hfSoft);
 
+  const formattedHf = useMemo(() => {
+    if (!hf) return "-";
+    // If there is no debt, many protocols report HF as max uint → treat as ∞
+    const noDebt = !status || Number(status.totalDebtBase) === 0;
+    if (noDebt) return "∞";
+    const n = Number(hf) / 1e18;
+    if (!isFinite(n) || n > 1000) return "∞";
+    return n.toFixed(2);
+  }, [hf, status]);
+
   const leverage = useMemo(() => {
     if (!status) return "-";
     const c = Number(status.totalCollateralBase) / 1e18;
@@ -48,7 +58,7 @@ export default function VaultDashboard() {
         />
         <MetricCard
           label="Health Factor"
-          value={hf ? formatRay(hf) : "-"}
+          value={formattedHf}
           accent="yellow"
         />
       </div>
