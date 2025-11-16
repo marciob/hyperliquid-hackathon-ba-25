@@ -39,7 +39,7 @@ npm run polymarket-guard
 ```
 
 Demo (≤ 3 min) – placeholder
-- Video: https://example.com/demo-loopguard (replace with final link)
+- Video: https://drive.google.com/drive/folders/1r0XTHFqze3lzxDvFCDjCaAsuLXcUnRUA
 - Flow: deposit → position opens → view shares/HF → rebalance (if needed) → full exit
 
 Notes / limitations
