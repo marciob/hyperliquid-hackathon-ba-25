@@ -109,15 +109,27 @@ contract LoopGuardVaultTest {
         uint256 hfAfterDeposit = vault.getHealthFactor();
 
         // Simulate stress: borrow more USDXL directly in the pool on behalf of the vault
-        // This increases totalDebtBase without touching vault.debtPrincipal.
-        pool.borrow(address(usdxl), 5e18, 2, 0, address(vault));
+        // Increase debt progressively until HF is between (hard, soft].
+        uint256 soft = vault.hfSoftFloor();
+        uint256 hard = vault.hfHardFloor();
+        for (uint256 i = 0; i < 64; i++) {
+            uint256 currentHf = vault.getHealthFactor();
+            if (currentHf <= soft && currentHf > hard) {
+                break;
+            }
+            if (currentHf <= hard) {
+                break; // avoid overshooting below hard floor
+            }
+            pool.borrow(address(usdxl), 1e18, 2, 0, address(vault));
+        }
 
         uint256 hfBeforeRebalance = vault.getHealthFactor();
         require(
             hfBeforeRebalance < hfAfterDeposit,
             "HF should drop after extra borrow"
         );
-        require(hfBeforeRebalance > 1e18, "setup: HF must stay > 1");
+        require(hfBeforeRebalance > hard, "setup: HF must stay > hard floor");
+        require(hfBeforeRebalance <= soft, "setup: HF not below soft floor");
 
         uint256 collBefore = vault.totalCollateralToken();
         uint256 debtBefore = vault.totalDebtToken();
@@ -166,24 +178,16 @@ contract LoopGuardVaultTest {
         uint256 hfBefore = vault.getHealthFactor();
         require(hfBefore <= 1e18, "setup: HF not <= 1");
 
-        uint256 debtBefore = vault.totalDebtToken();
-        uint256 collBefore = vault.totalCollateralToken();
-
-        // New deposit should NOT borrow more, just add collateral + shares
+        // With new spec, deposits are blocked when HF < hfHardFloor
+        bool success;
         uint256 rescueDeposit = 5e18;
-        vault.depositAndLoop(rescueDeposit);
+        try vault.depositAndLoop(rescueDeposit) {
+            success = true;
+        } catch {
+            success = false;
+        }
 
-        uint256 debtAfter = vault.totalDebtToken();
-        uint256 collAfter = vault.totalCollateralToken();
-
-        // No new principal debt should have been recorded in the vault
-        require(debtAfter == debtBefore, "unexpected extra principal debt");
-
-        // Collateral principal increased exactly by the rescue deposit
-        require(
-            collAfter == collBefore + rescueDeposit,
-            "collateral principal mismatch on rescue deposit"
-        );
+        require(!success, "deposit should revert below hard floor");
     }
 
     function test_PauseDeposits_BlocksDeposit() public {

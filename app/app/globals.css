@@ -1,39 +1,59 @@
 @import "tailwindcss";
 
-/* Enforce dark canvas and readable base text */
-:root {
-  color-scheme: dark;
+@theme {
+  /* Backgrounds / Surfaces */
+  --color-base: #050608;
+  --color-surface: #080A0D;
+  --color-surface-alt: #0C0F13;
+  --color-panel: #080A0D;
+  --color-panel-2: #050608;
+
+  /* Pastel accents (HypurrFi-style) */
+  --color-brand-mint: #BAFCE2;
+  --color-brand-sky: #C6EFFF;
+  --color-brand-yellow: #F7EF9A;
+  --color-brand-pink: #F9A8D4;
+  --color-brand-sage: #D6F3D2;
+
+  /* Text neutrals */
+  --color-text-main: #E2F5EE;
+  --color-text-subtle: #CBD5E1;
+  --color-text-muted: #94A3B8;
+  --color-text-soft: #64748B;
+
+  /* Borders */
+  --color-border-dim: #64748B80;
+
+  /* Shadows / Glows */
+  --shadow-mint-glow: 0 0 20px rgba(186, 252, 226, 0.35);
+  --shadow-sky-glow: 0 0 20px rgba(198, 239, 255, 0.30);
+  --shadow-yellow-glow: 0 0 20px rgba(247, 239, 154, 0.35);
+  --shadow-pink-glow: 0 0 20px rgba(249, 168, 212, 0.35);
+  --shadow-mint-glow-sm: 0 0 10px rgba(186, 252, 226, 0.28);
+  --shadow-sky-glow-sm: 0 0 10px rgba(198, 239, 255, 0.24);
+  --shadow-yellow-glow-sm: 0 0 10px rgba(247, 239, 154, 0.28);
+  --shadow-pink-glow-sm: 0 0 10px rgba(249, 168, 212, 0.28);
 }
 
-html,
-body {
-  min-height: 100%;
-  background-color: #050608; /* matches bg-bg-base */
-}
-
-body {
-  color: #cbd5e1; /* slate-300 */
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
-    Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-}
-
-/* Micro-interactions and diagram animations */
-@keyframes dash {
-  to {
-    stroke-dashoffset: 1000;
+@layer base {
+  html, body {
+    height: 100%;
+  }
+  body {
+    @apply bg-base text-text-main antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-@keyframes sparkle {
-  0% {
-    opacity: 0.15;
-    transform: translateY(0);
+@layer utilities {
+  .container-lg {
+    @apply mx-auto max-w-[70rem] px-4 sm:px-6;
   }
-  50% {
+  .divider-thin {
+    background-color: #10141A;
     opacity: 0.35;
-  }
-  100% {
-    opacity: 0.15;
-    transform: translateY(6px);
+    height: 1px;
+    width: 100%;
   }
 }
