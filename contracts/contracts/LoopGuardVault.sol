@@ -75,6 +75,9 @@ contract LoopGuardVault is ReentrancyGuard {
     uint256 public totalShares;
     mapping(address => uint256) public balanceOf;
 
+    /// @notice Approximate principal tracking (ignores interest / yield).
+    /// @dev These are NOT exact NAV. Frontends should prefer HypurrFi base data
+    ///      from getVaultAccountData() when computing real-time PnL / HF / TVL.
     /// @notice Principal UBTC supplied by the vault into HypurrFi (ignores interest)
     uint256 public collateralPrincipal;
 
@@ -434,7 +437,8 @@ contract LoopGuardVault is ReentrancyGuard {
     // View helpers for frontend
     // -----------------------------------------------------------------------
 
-    /// @notice Compact status for frontend dashboards
+    /// @notice Aggregated vault status for frontend / indexers.
+    /// @dev Mixes internal principal accounting with HypurrFi base data.
     function getVaultStatus()
         external
         view
@@ -444,15 +448,21 @@ contract LoopGuardVault is ReentrancyGuard {
             uint256 debtPrincipal_,
             uint256 totalCollateralBase,
             uint256 totalDebtBase,
-            uint256 hf
+            uint256 availableBorrowsBase,
+            uint256 healthFactor
         )
     {
         totalShares_ = totalShares;
         collateralPrincipal_ = collateralPrincipal;
         debtPrincipal_ = debtPrincipal;
-        (totalCollateralBase, totalDebtBase, , , , hf) = pool.getUserAccountData(
-            address(this)
-        );
+        (
+            totalCollateralBase,
+            totalDebtBase,
+            availableBorrowsBase,
+            ,
+            ,
+            healthFactor
+        ) = pool.getUserAccountData(address(this));
     }
 
     /// @notice Current health factor of the vault on HypurrFi
