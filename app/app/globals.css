@@ -1,1 +1,16 @@
 @import "tailwindcss";
+
+/* Enforce dark canvas and readable base text */
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  min-height: 100%;
+  background-color: #050608; /* matches bg-bg-base */
+}
+
+body {
+  color: #cbd5e1; /* slate-300 */
+}
