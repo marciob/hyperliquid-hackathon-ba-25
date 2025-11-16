@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-/// @notice Minimal HypurrFi Pool interface (Aave-style)
+/// @notice Minimal Aave v3 / HypurrFi IPool subset used by LoopGuardVault.
 interface IHypurrFiPool {
     function supply(
         address asset,
@@ -10,10 +10,16 @@ interface IHypurrFiPool {
         uint16 referralCode
     ) external;
 
+    function withdraw(
+        address asset,
+        uint256 amount,
+        address to
+    ) external returns (uint256);
+
     function borrow(
         address asset,
         uint256 amount,
-        uint256 interestRateMode, // 1 = stable, 2 = variable
+        uint256 interestRateMode,
         uint16 referralCode,
         address onBehalfOf
     ) external;
@@ -23,12 +29,6 @@ interface IHypurrFiPool {
         uint256 amount,
         uint256 rateMode,
         address onBehalfOf
-    ) external returns (uint256);
-
-    function withdraw(
-        address asset,
-        uint256 amount,
-        address to
     ) external returns (uint256);
 
     function getUserAccountData(
@@ -42,6 +42,6 @@ interface IHypurrFiPool {
             uint256 availableBorrowsBase,
             uint256 currentLiquidationThreshold,
             uint256 ltv,
-            uint256 healthFactor // 1e18 scaled
+            uint256 healthFactor
         );
 }
