@@ -8,20 +8,20 @@ import "./mocks/MockSwapRouter.sol";
 
 contract LoopGuardVaultTest {
     LoopGuardVault vault;
-    MockERC20 ubtc;
+    MockERC20 hype;
     MockERC20 usdxl;
     MockHypurrFiPool pool;
     MockSwapRouter router;
 
     function _setUp() internal {
-        ubtc = new MockERC20("Unit BTC", "UBTC", 18);
+        hype = new MockERC20("HYPE", "HYPE", 18);
         usdxl = new MockERC20("USD XL", "USDXL", 18);
 
         pool = new MockHypurrFiPool();
         router = new MockSwapRouter();
 
         vault = new LoopGuardVault(
-            address(ubtc),
+            address(hype),
             address(usdxl),
             address(pool),
             address(router),
@@ -30,13 +30,13 @@ contract LoopGuardVaultTest {
             1.4e18 // hfHardFloor
         );
 
-        // Mint UBTC to this contract (acts as user)
-        ubtc.mint(address(this), 1_000e18);
-        ubtc.approve(address(vault), type(uint256).max);
+        // Mint HYPE to this contract (acts as user)
+        hype.mint(address(this), 1_000e18);
+        hype.approve(address(vault), type(uint256).max);
 
         // Liquidity for pool and router
         usdxl.mint(address(pool), 1_000e18);
-        ubtc.mint(address(router), 1_000e18);
+        hype.mint(address(router), 1_000e18);
         usdxl.mint(address(router), 1_000e18);
     }
 
@@ -46,7 +46,7 @@ contract LoopGuardVaultTest {
         uint256 amountIn = 10e18;
         vault.depositAndLoop(amountIn);
 
-        // First depositor: 1 share = 1 UBTC
+        // First depositor: 1 share = 1 HYPE
         require(vault.totalShares() == amountIn, "unexpected totalShares");
 
         // Collateral principal should be > amountIn due to looping

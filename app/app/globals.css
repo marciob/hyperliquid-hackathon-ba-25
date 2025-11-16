@@ -43,6 +43,17 @@
     @apply bg-base text-text-main antialiased;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    line-height: 1.6;
+  }
+  /* Global, consistent type scale: make everything larger and readable */
+  html {
+    font-size: 18px; /* base up from ~16px */
+  }
+  @media (min-width: 640px) {
+    html { font-size: 19px; }
+  }
+  @media (min-width: 1024px) {
+    html { font-size: 20px; }
   }
 }
 

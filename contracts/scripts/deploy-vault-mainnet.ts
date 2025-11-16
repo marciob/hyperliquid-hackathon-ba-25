@@ -8,20 +8,30 @@ async function main() {
 
   console.log("Deployer:", deployerAddress);
 
-  // --- Real HyperEVM addresses (these are the ones you already wired in Ignition) ---
-  const collateral = "0x9fdbda0a5e284c32744d2f17ee5c74b284993463"; // UBTC
+  // --- Real HyperEVM addresses ---
+  // Collateral (HYPE/WHYPE ERC20) should be provided via env HYPE_ADDRESS
+  const collateral = process.env.HYPE_ADDRESS!;
   const debt = "0xca79db4b49f608ef54a5cb813fbed3a6387bc645"; // USDXL
   const pool = "0xceCcE0EB9DD2Ef7996e01e25DD70e461F918A14b"; // HypurrFi Pool
 
-  // TEMP router placeholder – we will replace this with a real DEX router
-  // before calling depositAndLoop on mainnet.
-  const router = "0x375b33942f93B26450301Bc7De9D32d2a4DBD37F";
+  // No DEX router for demo; borrow-only/repay flows handle safety
+  const router = "0x0000000000000000000000000000000000000000";
 
   const hfTarget = ethers.parseUnits("1.9", 18);
   const hfSoftFloor = ethers.parseUnits("1.6", 18);
   const hfHardFloor = ethers.parseUnits("1.4", 18);
 
   const VaultFactory = await ethers.getContractFactory("LoopGuardVault");
+
+  // Set explicit EIP-1559 fees to avoid provider fee history issues
+  const latest = await ethers.provider.getBlock("latest");
+  const base: bigint =
+    (latest?.baseFeePerGas as bigint) ?? ethers.parseUnits("1", "gwei");
+  const priority: bigint = ethers.parseUnits("2", "gwei");
+  const feeOverrides = {
+    maxPriorityFeePerGas: priority,
+    maxFeePerGas: base * 2n + priority,
+  };
 
   const vault = await VaultFactory.deploy(
     collateral,
@@ -30,7 +40,8 @@ async function main() {
     router,
     hfTarget,
     hfSoftFloor,
-    hfHardFloor
+    hfHardFloor,
+    feeOverrides
   );
 
   await vault.waitForDeployment();

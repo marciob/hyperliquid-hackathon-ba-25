@@ -4,7 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "vault:status": "hardhat run scripts/vault-show-status-mainnet.ts --network hyperEvm",
+    "vault:deposit": "hardhat run scripts/vault-deposit-mainnet.ts --network hyperEvm",
+    "vault:depositBorrow": "hardhat run scripts/vault-deposit-borrow-noswap.ts --network hyperEvm",
+    "vault:withdraw": "hardhat run scripts/vault-withdraw-mainnet.ts --network hyperEvm",
+    "vault:rebalance": "hardhat run scripts/vault-rebalance-mainnet.ts --network hyperEvm"
   },
   "keywords": [],
   "author": "",

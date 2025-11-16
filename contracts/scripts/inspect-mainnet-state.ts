@@ -3,7 +3,6 @@
 
 import { network } from "hardhat";
 
-const UBTC = "0x9fdbda0a5e284c32744d2f17ee5c74b284993463";
 const USDXL = "0xca79db4b49f608ef54a5cb813fbed3a6387bc645";
 const POOL = "0xceCcE0EB9DD2Ef7996e01e25DD70e461F918A14b";
 const ROUTER = "0x375b33942f93B26450301Bc7De9D32d2a4DBD37F"; // your MockSwapRouter
@@ -16,26 +15,46 @@ async function main() {
 
   console.log("Deployer:", deployerAddress);
 
-  const ubtc = await ethers.getContractAt("IERC20", UBTC);
+  // Resolve collateral token dynamically (prefer from VAULT, else HYPE_ADDRESS)
+  let collateral = process.env.HYPE_ADDRESS || "";
+  if (VAULT) {
+    try {
+      const vault = await ethers.getContractAt(
+        [
+          { type: "function", name: "getConfig", stateMutability: "view", inputs: [], outputs: [{ type: "address" }, { type: "address" }, { type: "address" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }, { type: "uint256" }] },
+          { type: "function", name: "collateral", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+        ] as any,
+        VAULT
+      );
+      try {
+        const cfg = await (vault as any).getConfig();
+        collateral = cfg[0];
+      } catch {
+        collateral = await (vault as any).collateral();
+      }
+    } catch {}
+  }
+  if (!collateral) {
+    throw new Error("Unable to resolve collateral token; set HYPE_ADDRESS or adjust VAULT");
+  }
+
+  const col = await ethers.getContractAt("IERC20", collateral);
   const usdxl = await ethers.getContractAt("IERC20", USDXL);
   const pool = await ethers.getContractAt("IHypurrFiPool", POOL);
   const vault = await ethers.getContractAt("LoopGuardVault", VAULT);
 
   // --- Basic balances ---
-  const ubtcDec = await ubtc.decimals();
+  const colDec = await col.decimals();
   const usdxlDec = await usdxl.decimals();
 
   console.log("\nDecimals:");
-  console.log("  UBTC  :", ubtcDec.toString());
+  console.log("  COLL  :", colDec.toString());
   console.log("  USDXL :", usdxlDec.toString());
 
   console.log("\nBalances:");
-  console.log(
-    "  UBTC deployer :",
-    (await ubtc.balanceOf(deployerAddress)).toString()
-  );
-  console.log("  UBTC router   :", (await ubtc.balanceOf(ROUTER)).toString());
-  console.log("  UBTC vault    :", (await ubtc.balanceOf(VAULT)).toString());
+  console.log("  COLL deployer :", (await col.balanceOf(deployerAddress)).toString());
+  console.log("  COLL router   :", (await col.balanceOf(ROUTER)).toString());
+  console.log("  COLL vault    :", (await col.balanceOf(VAULT)).toString());
 
   console.log(
     "  USDXL deployer:",
@@ -44,12 +63,9 @@ async function main() {
   console.log("  USDXL router  :", (await usdxl.balanceOf(ROUTER)).toString());
   console.log("  USDXL vault   :", (await usdxl.balanceOf(VAULT)).toString());
 
-  // --- Allowances UBTC -> vault (for deposit) ---
-  console.log("\nUBTC allowances to vault:");
-  console.log(
-    "  deployer -> vault:",
-    (await ubtc.allowance(deployerAddress, VAULT)).toString()
-  );
+  // --- Allowances collateral -> vault (for deposit) ---
+  console.log("\nCollateral allowances to vault:");
+  console.log("  deployer -> vault:", (await col.allowance(deployerAddress, VAULT)).toString());
 
   // --- Vault account data on HypurrFi ---
   const [

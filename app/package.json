@@ -2,6 +2,7 @@
   "name": "llm-flip",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
@@ -10,9 +11,13 @@
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.1.7",
+    "@tanstack/react-query": "^5.90.9",
+    "lucide-react": "^0.469.0",
     "next": "15.1.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "viem": "^2.39.0",
+    "wagmi": "^2.19.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -10,13 +10,13 @@ export type Strategy = {
   hfBandMin: number;
   hfBandMax: number;
   shortDescription: string;
-  assets: string; // e.g., "UBTC collateral · USDXL debt"
+  assets: string; // e.g., "HYPE collateral · USDXL debt"
 };
 
 export const strategies: Strategy[] = [
   {
-    id: "ubtc-usdxl-core",
-    name: "LoopGuard – UBTC / USDXL",
+    id: "hype-usdxl-core",
+    name: "LoopGuard – HYPE / USDXL",
     variant: "Core",
     riskLevel: "Moderate",
     estLeverage: 2.4,
@@ -24,12 +24,12 @@ export const strategies: Strategy[] = [
     hfBandMin: 1.6,
     hfBandMax: 2.0,
     shortDescription:
-      "Loops UBTC exposure with automatic guard rails to keep HF within safe bands.",
-    assets: "UBTC collateral · USDXL debt",
+      "Loops HYPE exposure with automatic guard rails to keep HF within safe bands.",
+    assets: "HYPE collateral · USDXL debt",
   },
   {
-    id: "ubtc-usdxl-conservative",
-    name: "LoopGuard – UBTC / USDXL",
+    id: "hype-usdxl-conservative",
+    name: "LoopGuard – HYPE / USDXL",
     variant: "Conservative",
     riskLevel: "Low",
     estLeverage: 1.8,
@@ -38,11 +38,11 @@ export const strategies: Strategy[] = [
     hfBandMax: 2.2,
     shortDescription:
       "Lower risk variant with wider cushions and reduced rebalancing intensity.",
-    assets: "UBTC collateral · USDXL debt",
+    assets: "HYPE collateral · USDXL debt",
   },
   {
-    id: "ubtc-usdxl-experimental",
-    name: "LoopGuard – UBTC / USDXL",
+    id: "hype-usdxl-experimental",
+    name: "LoopGuard – HYPE / USDXL",
     variant: "Experimental",
     riskLevel: "High",
     estLeverage: 3.0,
@@ -51,8 +51,6 @@ export const strategies: Strategy[] = [
     hfBandMax: 2.0,
     shortDescription:
       "Higher leverage profile. More responsive to market odds for proactive rebalancing.",
-    assets: "UBTC collateral · USDXL debt",
+    assets: "HYPE collateral · USDXL debt",
   },
 ];
-
-

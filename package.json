@@ -1,7 +1,20 @@
 {
   "name": "hardhat-project",
+  "scripts": {
+    "polymarket-guard": "tsx keeper/polymarket-guard.ts",
+    "sync:frontend-env": "tsx scripts/sync-frontend-env.ts",
+    "vault:status": "hardhat run contracts/scripts/vault-show-status-mainnet.ts --network hyperEvm",
+    "vault:deposit": "hardhat run contracts/scripts/vault-deposit-mainnet.ts --network hyperEvm",
+    "vault:depositBorrow": "hardhat run contracts/scripts/vault-deposit-borrow-noswap.ts --network hyperEvm",
+    "vault:withdraw": "hardhat run contracts/scripts/vault-withdraw-mainnet.ts --network hyperEvm",
+    "vault:rebalance": "hardhat run contracts/scripts/vault-rebalance-mainnet.ts --network hyperEvm"
+  },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
-    "hardhat": "^2.27.0"
+    "hardhat": "^2.27.0",
+    "ethers": "^6.15.0",
+    "dotenv": "^16.4.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3"
   }
 }

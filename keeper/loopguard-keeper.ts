@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+import "dotenv/config";
 /**
  * LoopGuard Vault Keeper
  *

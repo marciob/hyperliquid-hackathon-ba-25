@@ -1,17 +1,26 @@
 // app/page.tsx
 import Link from "next/link";
 import { strategies } from "./data/strategies";
+import { HomeSafetyStrip } from "./components/HomeSafetyStrip";
 
 export default function Home() {
   return (
     <div className="min-h-screen w-full">
       <div className="container-lg py-8 sm:py-10">
         <header className="mb-6">
-          <h1 className="text-3xl font-semibold text-text-main">Choose a strategy</h1>
-          <p className="mt-2 text-sm text-text-muted">Pick a LoopGuard strategy to see details and deposit.</p>
-          <div className="mt-3 h-1 w-12 rounded-full bg-brand-mint shadow-mint-glow-sm" />
+          <h1 className="text-3xl font-semibold text-text-main">
+            Safer yields, backed by live signals
+          </h1>
+          <p className="mt-2 text-sm text-text-muted">
+            Health Factor guard rails + Polymarket macro signal → friendly, risk‑aware leverage.
+          </p>
+          <div className="mt-3 h-1 w-16 rounded-full bg-brand-mint shadow-mint-glow-sm" />
         </header>
+        <HomeSafetyStrip />
 
+        <div className="mb-3">
+          <h2 className="text-xl font-semibold text-text-main">Choose a strategy</h2>
+        </div>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {strategies.map((s, idx) => {
             const isCore = s.variant === "Core";
@@ -78,16 +87,10 @@ export default function Home() {
 
                 <div className="mt-1 flex items-center gap-3">
                   <Link
-                    href={`/strategy/${s.id}`}
+                    href={`/strategy/${s.id}?tab=deposit`}
                     className="rounded-full bg-gradient-to-r from-brand-mint to-brand-sky px-5 py-2.5 text-sm font-semibold text-[#050608] shadow-[0_0_18px_rgba(186,252,226,0.35)] transition hover:scale-[1.02] hover:shadow-[0_0_22px_rgba(186,252,226,0.45)]"
                   >
-                    View details
-                  </Link>
-                  <Link
-                    href={`/strategy/${s.id}`}
-                    className="rounded-full px-3 py-2 text-sm text-brand-sky transition hover:bg-[#C6EFFF1A]"
-                  >
-                    Learn more
+                    Deposit
                   </Link>
                 </div>
               </div>

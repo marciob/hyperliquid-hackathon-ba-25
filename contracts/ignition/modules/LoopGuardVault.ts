@@ -4,7 +4,7 @@ const LoopGuardVaultModule = buildModule("LoopGuardVaultModule", (m) => {
   // Real HyperEVM addresses (fill these in when you’re ready)
   const collateral = m.getParameter(
     "collateral",
-    "0x9fdbda0a5e284c32744d2f17ee5c74b284993463" // UBTC
+    "0x0000000000000000000000000000000000000000" // HYPE/WHYPE ERC20 - set this before deploy
   );
 
   const debt = m.getParameter(

@@ -4,7 +4,31 @@ export type MarketProbability = {
   marketId: string;
   probability: number; // 0..1
   source: string;
+  slug?: string;
+  imageUrl?: string;
 };
+
+/**
+ * Resolve a market id from a human-friendly slug.
+ * GET /markets/slug/{slug}
+ */
+export async function resolveMarketIdFromSlug(
+  slug: string
+): Promise<string> {
+  const url = `https://gamma-api.polymarket.com/markets/slug/${encodeURIComponent(
+    slug
+  )}`;
+  const res = await fetch(url, { method: "GET" });
+  if (!res.ok) {
+    throw new Error(`slug lookup HTTP ${res.status}`);
+  }
+  const data = (await res.json()) as any;
+  const id: string | undefined = data?.id || data?.market?.id;
+  if (!id) {
+    throw new Error("slug lookup: id not found in response");
+  }
+  return id;
+}
 
 /**
  * Fetch a binary market probability from Polymarket public API.
@@ -45,7 +69,10 @@ export async function getMarketProbability(
     }
     // Clamp
     if (!(prob >= 0 && prob <= 1)) prob = Math.max(0, Math.min(1, prob));
-    return { marketId, probability: prob, source: "polymarket" };
+    const slug: string | undefined = market?.slug;
+    const imageUrl: string | undefined =
+      market?.image_url || market?.image || market?.cover_image;
+    return { marketId, probability: prob, source: "polymarket", slug, imageUrl };
   } catch (err) {
     console.warn(
       `[polymarket] fetch failed for ${marketId}: ${

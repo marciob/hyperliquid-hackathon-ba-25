@@ -13,7 +13,7 @@ function Overview({ s }: { s: any }) {
       <section className="mt-4 rounded-2xl bg-[#080A0D] border border-[#C6EFFF1F] shadow-[0_0_12px_rgba(198,239,255,0.14)] p-6">
         <h3 className="text-lg font-semibold text-[#C6EFFF]">What this strategy does</h3>
         <ul className="mt-3 space-y-2 text-base text-[#CBD5E1]">
-          <li><span className="text-[#F7EF9A]">✦</span> Loops UBTC on HypurrFi to increase your exposure.</li>
+          <li><span className="text-[#F7EF9A]">✦</span> Loops HYPE on HypurrFi to increase your exposure.</li>
           <li><span className="text-[#F7EF9A]">✦</span> Keeps HF between {s.hfBandMin.toFixed(1)} and {s.hfBandMax.toFixed(1)} using automatic guard rails.</li>
           <li><span className="text-[#F7EF9A]">✦</span> Optionally reacts to Polymarket odds to rebalance earlier.</li>
         </ul>
@@ -32,7 +32,7 @@ function Overview({ s }: { s: any }) {
         </div>
         <div className="rounded-2xl bg-[#C6EFFF20] border border-[#C6EFFF40] p-5">
           <div className="text-sm text-[#C6EFFF] font-semibold">Who is this for?</div>
-          <div className="mt-2 text-base text-[#CBD5E1]">Users seeking controlled leverage on UBTC with automatic safety rails.</div>
+          <div className="mt-2 text-base text-[#CBD5E1]">Users seeking controlled leverage on HYPE with automatic safety rails.</div>
         </div>
       </section>
 

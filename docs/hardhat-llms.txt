@@ -1,0 +1,3561 @@
+# Hardhat
+
+> Hardhat is an extensible Ethereum development environment that helps developers write, test, debug, and deploy smart contracts. It provides a flexible and customizable framework for building Ethereum software, from simple prototypes to complex production systems.
+
+Hardhat offers comprehensive tools for the entire smart contract development lifecycle. It supports testing contracts in both Solidity and TypeScript, writing scripts for network interaction, and deploying contracts. The development environment is configurable through a `hardhat.config.ts` file, allowing customization of compiler versions, network settings, and plugin usage.
+
+## Documentation
+
+- [Hardhat 3 Documentation](https://hardhat.org/docs): The main documentation hub for Hardhat, covering getting started, guides, reference, and plugin information.
+- [Writing unit tests in Solidity](https://hardhat.org/docs/guides/writing-solidity-tests): A guide on how to write, run, and configure Solidity tests within a Hardhat project.
+
+## Main Site
+
+- [Hardhat Official Website](https://hardhat.org): The homepage for Hardhat, providing an overview of the tool and links to resources.
+
+## Configuration
+
+- [robots.txt](https://hardhat.org/robots.txt): Configuration file specifying how search engine crawlers should access the website.
+
+Getting started with Hardhat 3:
+Tip: Hardhat 3 is production-ready and you can migrate today! We’ll keep it in beta status as we work on missing features and stabilize it in the near future.
+
+Hardhat is a flexible and extensible development environment for Ethereum software. It helps you write, test, debug and deploy your smart contracts with ease, whether you’re building a simple prototype or a complex production system.
+
+This guide will walk you through the installation of our recommended setup, but as most of Hardhat’s functionality comes from plugins, you are free to customize it or choose a completely different path.
+
+Installation
+To get started with Hardhat 3, you’ll need Node.js v22 or later installed on your system, along with a package manager such as npm, yarn, or pnpm.
+
+First, create a new directory for your project:
+
+Terminal window
+mkdir hardhat-example
+cd hardhat-example
+
+Once that’s done, initialize your Hardhat project by running:
+
+npx hardhat --init
+
+
+This command will prompt you with a few configuration options. You can accept the default answers to quickly scaffold a working setup.
+
+Using the defaults will:
+
+Initialize the project in the current directory.
+Use the sample project that includes the Node.js test runner and viem.
+Automatically install all the required dependencies.
+After the setup is complete, you’ll have a fully working Hardhat 3 project with everything you need to get started. Run the Hardhat help to verify the project was set up correctly:
+
+npx hardhat --help
+
+Project structure:
+The Hardhat project initialization from the previous section creates the following file structure:
+hardhat.config.ts
+Directory contracts:
+Counter.sol
+Counter.t.sol
+Directory test:
+Counter.ts
+Directory ignition:
+Directory modules:
+Counter.ts
+Directory scripts:
+send-op-tx.ts
+
+Here’s a quick overview of these files and directories:
+
+hardhat.config.ts: The main configuration file for your project. It defines settings like the Solidity compiler version, network configurations, and the plugins and tasks your project uses.
+
+contracts: Contains your project’s Solidity contracts. You can also include Solidity test files here by using the .t.sol extension.
+
+test: Used for TypeScript integration tests. You can also include Solidity test files here.
+
+ignition: Holds your Hardhat Ignition deployment modules, which describe how your contracts should be deployed.
+
+scripts: A place for any custom scripts that automate parts of your workflow. Scripts have full access to Hardhat’s runtime and can use plugins, connect to networks, deploy contracts, and more.
+
+Writing a smart contract:
+
+Tip:
+Hardhat for Visual Studio Code is the official Hardhat extension that adds advanced support for Solidity to VSCode. If you use Visual Studio Code, give it a try!
+
+Writing a smart contract with Hardhat is as easy as writing a Solidity file inside the contracts directory. For example, your contracts/Counter.sol should look like this:
+
+pragma solidity ^0.8.28;
+
+contract Counter {
+  uint public x;
+
+  event Increment(uint by);
+
+  function inc() public {
+    x++;
+    emit Increment(1);
+  }
+
+  function incBy(uint by) public {
+    require(by > 0, "incBy: increment should be positive");
+    x += by;
+    emit Increment(by);
+  }
+}
+
+Hardhat will automatically detect it, and compile it with the correct version of Solidity based on its pragma statement and your Hardhat configuration. All you need to do is run:
+
+npx hardhat build
+
+You can learn more about how to customize your Solidity version and settings in this guide.
+
+
+
+Testing your contracts:
+Tests are a critical part of any Ethereum project. Hardhat lets you write tests in both Solidity and TypeScript, giving you flexibility to choose the right tool for each situation.
+
+Hardhat tests run against a local in-memory blockchain, which is much faster than using a real network and doesn’t require you to spend ETH or obtain testnet tokens.
+
+Solidity tests:
+Hardhat 3 has full support for writing Solidity tests. The sample project includes a Solidity test file at contracts/Counter.t.sol:
+
+import { Counter } from "./Counter.sol";
+import { Test } from "forge-std/Test.sol";
+
+contract CounterTest is Test {
+  Counter counter;
+
+  function setUp() public {
+    counter = new Counter();
+  }
+
+  function test_InitialValue() public view {
+    require(counter.x() == 0, "Initial value should be 0");
+  }
+
+  function testFuzz_Inc(uint8 x) public {
+    for (uint8 i = 0; i < x; i++) {
+      counter.inc();
+    }
+    require(counter.x() == x, "Value after calling inc x times should be x");
+  }
+
+  function test_IncByZero() public {
+    vm.expectRevert();
+    counter.incBy(0);
+  }
+}
+
+You can run all the tests in your project—both Solidity and TypeScript—using the test task:
+
+npx hardhat test
+
+If you only want to run your Solidity tests, you can use this instead:
+
+npx hardhat test solidity
+
+When you run this command, Hardhat will:
+
+Compile your contracts and tests.
+Gather all your test files. These include all .t.sol files in the contracts/ directory and all .sol files in the test/ directory.
+Deploy each test contract defined in those files.
+Call every function that starts with test. If any of these calls revert, the corresponding test is marked as failed.
+In the example above:
+
+test_InitialValue and test_IncByZero are unit tests: they take no parameters and run once per test execution.
+testFuzz_Inc is a fuzz test: since it takes a parameter, Hardhat will run it multiple times using random inputs. If any of those runs revert, the fuzz test fails and the failing input is printed.
+If any of your tests fails, Hardhat will provide detailed Solidity stack traces to help you understand why. To see them in action, first comment out the vm.expectRevert(); line in test_IncByZero:
+
+function test_IncByZero() public {
+  // vm.expectRevert();
+  counter.incBy(0);
+}
+
+Then run the last command again and you’ll get a stack-trace along with the test failure:
+
+Failure (1): test_IncByZero()
+Reason: revert: incBy: increment should be positive
+  at Counter.incBy (contracts/Counter.sol:15)
+  at CounterTest.test_IncByZero (contracts/Counter.t.sol:30)
+
+This lets you quickly pinpoint the issue, even across deeply nested calls.
+
+Learn more at writing Solidity tests here.
+
+TypeScript tests:
+
+
+Solidity tests are ideal for fast, focused unit testing, but they fall short in certain situations:
+
+Complex test logic, where a general-purpose language like TypeScript is more expressive and ergonomic than Solidity.
+Tests that require realistic blockchain behavior, such as advancing blocks or working with gas costs. While cheatcodes can simulate this to some extent, excessive mocking is hard to maintain and can lead to inaccurate assumptions.
+End-to-end scenarios, where you want to test your contracts as they would behave in production, involving multiple transactions, clients, and user interactions.
+To support these use cases, Hardhat lets you write tests in TypeScript (or JavaScript), using the Node.js test runner or other frameworks like Mocha. These tests run in a real Node.js environment and interact with your contracts through JSON-RPC, making them more representative of actual usage.
+
+The sample project comes with a TypeScript test file at test/Counter.ts, which includes the following test:
+
+it("The sum of the Increment events should match the current value", async function () {
+  const counter = await viem.deployContract("Counter");
+
+  // run a series of increments
+  for (let i = 1n; i <= 10n; i++) {
+    await counter.write.incBy([i]);
+  }
+
+  const events = await publicClient.getContractEvents({
+    address: counter.address,
+    abi: counter.abi,
+    eventName: "Increment",
+    fromBlock: 0n,
+    strict: true,
+  });
+
+  // check that the aggregated events match the current value
+  let total = 0n;
+  for (const event of events) {
+    total += event.args.by;
+  }
+
+  assert.equal(total, await counter.read.x());
+});
+
+
+This test deploys the Counter contract, calls incBy multiple times (each in a separate transaction), collects all the emitted Increment events, and verifies that their sum matches the contract’s final value.
+
+Writing this same test in Solidity is possible, but less convenient, and the test would be executed in a different context — closer to a single transaction calling the contract multiple times, than different users interacting with it over time. This makes TypeScript a better fit for scenarios that depend on realistic transaction flows or blockchain behavior.
+
+
+To run your TypeScript tests, use the test nodejs task:
+
+npx hardhat test nodejs
+
+You can write any TypeScript code you want in your tests, as they are normal TypeScript files with access to Hardhat. In this example, we use viem to interact with the contracts and test the expected behavior. To learn more about how to use viem with Hardhat, read this guide.
+
+
+
+Solidity vs TypeScript tests:
+Solidity tests run directly on the EVM and are great for unit tests. They execute in a controlled environment, making them fast and deterministic. They also have access to test-related EVM extensions, normally called cheatcodes, which allow you to build complex tests in Solidity.
+
+TypeScript tests, on the other hand, use a fully-simulated local blockchain and interact with it through JSON-RPC. This allows you to write more complex or end-to-end tests using the full power of a general-purpose programming language and a realistic blockchain simulation. You can use any Ethereum TypeScript library, like viem or ethers.js to write your tests.
+
+Use Solidity when you want low-level, efficient, EVM-native tests. Use TypeScript when you want richer tooling, more flexible assertions, or to test blockchain-level interactions, like workflows involving multiple transactions.
+
+
+
+Writing scripts to interact with the network:
+A script in Hardhat is just a TypeScript or JavaScript file with access to your contracts, configuration, and any other functionality that Hardhat provides. You can use them to run custom logic or to automate workflows.
+
+By convention, scripts are located in the scripts/ directory. You can name them however you like and use either .ts or .js extensions.
+
+The sample project includes two scripts. One of them, scripts/send-op-tx.ts, shows how you can simulate a local Optimism-like network and send a transaction on it.
+
+To run a script, you can use the run task:
+
+npx hardhat run scripts/send-op-tx.ts
+
+By doing this, Hardhat will compile your contracts and run your script with access to all of Hardhat’s functionality.
+
+Deploying contracts:
+The example project comes with our official deployment solution: Hardhat Ignition, a declarative system for deploying smart contracts.
+
+With Hardhat Ignition, you define the smart contract instances you want to deploy, along with any operations you want to perform on them. These definitions are grouped into Ignition Modules, which are then analyzed and executed in the most efficient way. This includes sending independent transactions in parallel, recovering from errors, and resuming interrupted deployments.
+
+Ignition modules are located in the ignition/modules/ directory. This is the example module, ignition/modules/Counter.ts:
+
+
+```
+import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
+
+export default buildModule("CounterModule", (m) => {
+  const counter = m.contract("Counter");
+
+  m.call(counter, "incBy", [5n]);
+
+  return { counter };
+});
+```
+
+Inside a module you call functions, like m.contract and m.call, to describe the deployment you want to execute. To learn more about how to write an Ignition module, please read this document.
+
+Modules are deployed with the ignition deploy task. To check that the deployment works correctly, let’s run it in a simulated network:
+
+npx hardhat ignition deploy ignition/modules/Counter.ts
+
+Your deployment was successfully executed in a network simulated by Hardhat! To learn more about how to deploy contracts with Ignition, including how to connect to a real network and how to manage your private keys, please read this guide.
+
+#####
+
+---
+title: Writing unit tests in Solidity
+description: How to write unit tests in Solidity
+sidebar:
+  order: 1
+---
+
+import Install from "@hh/Install.astro";
+import Run from "@hh/Run.astro";
+
+Hardhat supports writing tests in both TypeScript and Solidity. TypeScript is typically used for higher-level integration tests, whereas Solidity is better suited for unit tests. This guide explains how to add Solidity tests to a Hardhat project, run them, and configure their execution. This isn't meant to serve as an introduction to Solidity tests and assumes familiarity with them.
+
+## Writing Solidity tests
+
+A Solidity file is considered a **test file** if:
+
+- It's inside the `test/` directory
+- It's inside the `contracts/` directory and ends with `.t.sol`.
+
+Both of these directories can be changed in your Hardhat configuration, but these are the default ones.
+
+If a contract in a test file has at least one function that starts with `test`, it's considered a **test contract**. When the tests are run, Hardhat deploys every test contract and calls each of its test functions.
+
+For example, if you have a file named `contracts/CounterTest.t.sol` or `test/CounterTest.sol` with the following contract:
+
+```solidity
+contract CounterTest {
+  function testInc() public {
+    Counter counter = new Counter();
+    counter.inc();
+    require(counter.count() == 1, "count should be 1");
+  }
+}
+```
+
+the test runner will deploy the `CounterTest` contract and call its `testInc` function. If the function execution reverts, the test is considered failed.
+
+Hardhat also supports **fuzz tests**, which are similar to regular tests but accept parameters. When the tests are executed, fuzz test functions are called multiple times with random values as arguments:
+
+```solidity
+contract CounterTest {
+  function testIncBy(uint by) public {
+    Counter counter = new Counter();
+    counter.incBy(by);
+    require(counter.count() == by, "count should match the 'by' value");
+  }
+}
+```
+
+### Assertion libraries
+
+In the previous example, the error message doesn't show the actual value of `by` that made the test fail. That's because interpolating the value into the string isn't straightforward in Solidity. To get better error messages, plus other useful functionality, you can use an assertion library like [forge-std](https://github.com/foundry-rs/forge-std).
+
+To use `forge-std` in a Hardhat project, first install it:
+
+<Install packages="'github:foundry-rs/forge-std#v1.9.7'" />
+
+You can then import the `Test` base contract and extend your test contracts from it. This lets you use helper functions like `assertEq`, which shows the mismatched values when the assertion fails:
+
+```solidity
+import { Test } from "forge-std/Test.sol";
+
+contract CounterTest is Test {
+  function testIncBy(uint by) public {
+    Counter counter = new Counter();
+    counter.incBy(by);
+    assertEq(counter.count(), by, "count should match the 'by' value");
+  }
+}
+```
+
+### Setup functions
+
+Both the unit and fuzz test examples shown above create an instance of the `Counter` contract. You can share setup logic like that across tests using the `setUp` function, which is called before each test execution:
+
+```solidity
+contract CounterTest {
+  Counter counter;
+
+  function setUp() public {
+    counter = new Counter();
+  }
+
+  function testInc() public {
+    counter.inc();
+    require(counter.count() == 1, "count should be 1");
+  }
+
+  function testIncBy(uint by) public {
+    counter.incBy(by);
+    require(counter.count() == by, "count should match the 'by' value");
+  }
+}
+```
+
+## Running Solidity tests
+
+You can run all the tests in your Hardhat project using the `test` task:
+
+<Run command="hardhat test" />
+
+If you only want to run your Solidity tests, use the `test solidity` task instead:
+
+<Run command="hardhat test solidity" />
+
+You can also pass one or more paths as arguments to these tasks, in which case only those files are executed:
+
+<Run command="hardhat test <test-file-1> <test-file-2> ..." />
+
+## Configuring Solidity tests
+
+You can configure how Solidity tests are executed in your Hardhat configuration.
+
+### Configuring the tests location
+
+By default, Hardhat treats every Solidity file in the `test/` directory as a test file. To use a different location, set the `paths.tests.solidity` field:
+
+```ts
+paths: {
+  tests: {
+    solidity: "./solidity-tests"
+  }
+},
+```
+
+### Configuring the tests execution
+
+To configure how Solidity tests are executed, use the `test.solidity` object in the Hardhat configuration.
+
+For example, the `ffi` cheatcode is disabled by default for security reasons, but you can enable it:
+
+```ts
+test: {
+  solidity: {
+    ffi: true,
+  },
+},
+```
+
+It's also possible to modify the execution environment of the tests. For example, you can modify the address that is returned by `msg.sender`:
+
+```ts
+test: {
+  solidity: {
+    sender: "0x1234567890123456789012345678901234567890",
+  },
+},
+```
+
+#####
+
+---
+title: How to use viem with Hardhat 3
+description: How to use viem with Hardhat
+sidebar:
+  label: Using viem
+  order: 2
+---
+
+import Install from "@hh/Install.astro";
+
+[viem](https://viem.sh/) is a modern, type-safe library to deploy contracts, manage accounts, read chain state, and more. It's the library we recommend for interacting with Ethereum. You can integrate viem with Hardhat by using the `hardhat-viem` plugin.
+
+## Setup
+
+If you have already initialized a viem-based project using `hardhat --init`, you don't need to do anything else.
+
+If you want to add the plugin manually:
+
+1. Install the plugin:
+
+   <Install packages="@nomicfoundation/hardhat-viem" />
+
+2. Add it to the list of plugins in your Hardhat configuration:
+
+   ```ts
+   // hardhat.config.ts
+   import { defineConfig } from "hardhat/config";
+   import hardhatViem from "@nomicfoundation/hardhat-viem";
+
+   export default defineConfig({
+     plugins: [
+       hardhatViem,
+       // ...other plugins...
+     ],
+     // ...other config...
+   });
+   ```
+
+## Connecting to networks
+
+In Hardhat, you interact with networks using _network connections_. You can create connections with the network manager, which can be imported directly from Hardhat:
+
+```ts
+import { network } from "hardhat";
+
+const connection = await network.connect();
+```
+
+Plugins can extend the objects returned by the network manager. The `hardhat-viem` plugin extends them with a `viem` property, which provides helpers to interact with the network you connected to:
+
+```ts
+const { viem } = await network.connect();
+
+const publicClient = await viem.getPublicClient();
+console.log("Latest block number:", await publicClient.getBlockNumber());
+```
+
+## Using viem clients
+
+Viem functionality is grouped into [clients](https://viem.sh/docs/clients/intro). The `hardhat-viem` plugin helps you create viem clients more easily.
+
+You can create a [public client](https://viem.sh/docs/clients/public) using the `getPublicClient` method:
+
+```ts
+const { viem } = await network.connect();
+
+const publicClient = await viem.getPublicClient();
+
+console.log("Latest block number:", await publicClient.getBlockNumber());
+```
+
+Use the `getWalletClients` function to obtain [wallet clients](https://viem.sh/docs/clients/wallet). It returns an array of wallet clients, one for each account set up in the Hardhat config:
+
+```ts
+const [senderClient, receiverClient] = await viem.getWalletClients();
+
+await senderClient.sendTransaction({
+  to: receiverClient.account.address,
+  value: 10n ** 18n,
+});
+```
+
+Finally, if you are connecting to a Hardhat network, you can call `getTestClient` to get a [test client](https://viem.sh/docs/clients/test):
+
+```ts
+const testClient = await viem.getTestClient();
+
+await testClient.mine({
+  blocks: 10,
+});
+```
+
+## Deploying and interacting with contracts
+
+`hardhat-viem` includes a `deployContract` function to deploy contracts defined in the project. This function returns a viem [contract instance](https://viem.sh/docs/contract/getContract) of the deployed contract:
+
+```ts
+import { network } from "hardhat";
+
+const { viem } = await network.connect();
+const counter = await viem.deployContract("Counter");
+
+await counter.write.inc();
+
+console.log("Counter value:", await counter.read.x());
+```
+
+If the constructor takes parameters, you can pass them as the second argument:
+
+```ts
+const initialValue = 10n;
+const counter = await viem.deployContract("Counter", [initialValue]);
+```
+
+By default, contracts are deployed from the first account defined in the Hardhat configuration, but you can specify a different one:
+
+```ts
+const [wallet1, wallet2] = await viem.getWalletClients();
+
+const counter = await viem.deployContract("Counter", [10n], {
+  client: {
+    wallet: wallet2,
+  },
+});
+```
+
+The `deployContract` function waits until the contract is deployed. If you just want to send the deployment without waiting until it's mined, you can use `sendDeploymentTransaction`:
+
+```ts
+const { deploymentTransaction } = await viem.sendDeploymentTransaction(
+  "Counter",
+  [10n],
+  {
+    client: {
+      wallet: wallet2,
+    },
+  },
+);
+```
+
+All the previous examples deploy a new contract instance, but sometimes you need to interact with an already deployed contract. In those cases, use the `getContractAt` function:
+
+```ts
+const counterAddress = "0x1234567890123456789012345678901234567890";
+const counter = await viem.getContractAt("Counter", counterAddress);
+```
+
+### Using contracts from an npm dependency
+
+You can also use a contract defined in an npm dependency with `hardhat-viem`.
+
+To do this, configure Hardhat to compile the contract and generate its artifacts. Read [this guide](/docs/guides/configuring-the-compiler#generating-artifacts-from-npm-dependencies) to learn how.
+
+This lets you to use the `hardhat-viem` helpers to interact with it, just like any other contract in your project.
+
+## Viem assertions
+
+The example project includes the `hardhat-viem-assertions` plugin, which helps you write expressive TypeScript tests in viem-based projects.
+
+This plugin adds an `assertions` property to the `viem` object, giving you utility functions to test contract behavior more easily. For example, the following test checks that calling a function emits the expected event:
+
+```ts
+it("Should emit the Increment event when calling the inc() function", async function () {
+  const counter = await viem.deployContract("Counter");
+
+  await viem.assertions.emitWithArgs(
+    counter.write.inc(),
+    counter,
+    "Increment",
+    [1n],
+  );
+});
+```
+
+You can also assert that transactions revert (and why), or check that account balances change as expected.
+
+## Type-safe contract interactions
+
+Viem has powerful typing capabilities, triggering compilation errors when you make mistakes like using the wrong type in a function argument or sending value to a non-payable function:
+
+```ts
+// doesn't compile if getItem expects a number but receives a string:
+await contract.read.getItem(["3"]);
+
+// doesn't compile if setItem is not payable:
+await contract.write.setItem([3, "three"], {
+  value: 1000n,
+});
+```
+
+When using viem on its own, you need to explicitly use the contract's ABI to get properly inferred types. The `hardhat-viem` plugin handles this automatically in helpers like `deployContract` or `getContractAt`.
+
+### Troubleshooting contract type errors
+
+Contract types are updated when the project is compiled. If you are getting a compilation error that you don't expect, make sure you've run `hardhat build`.
+
+Note that VSCode may not always pick up the type updates automatically. If you are still getting unexpected TypeScript errors after compiling the project, open the [Command Palette](https://code.visualstudio.com/docs/getstarted/userinterface#_command-palette) and run `TypeScript: Reload Project`.
+
+## Using viem as a module
+
+The `viem` object in the connection only includes the functionality added by `hardhat-viem`. To use viem's own functionality, import it from the `viem` module:
+
+```ts
+import { keccak256 } from "viem";
+import { network } from "hardhat";
+
+const { viem } = await network.connect();
+```
+
+Keep in mind that you can get a name clash if you use a namespace import:
+
+```ts
+import * as viem from "viem";
+import { network } from "hardhat";
+
+// this is an error because viem is already declared
+const { viem } = await network.connect();
+```
+
+One way to work around this problem is to use a different name for the Hardhat viem object:
+
+```ts
+const { viem: hhViem } = await network.connect();
+
+const publicClient = await hhViem.getPublicClient();
+```
+
+###
+
+---
+title: Deploying smart contracts
+description: How to deploy a smart contract
+sidebar:
+  label: Deploying contracts
+  order: 3
+---
+
+import Run from "@hh/Run.astro";
+
+Hardhat comes with an official deployment solution: [**Hardhat Ignition**](https://hardhat.org/ignition), a declarative system for deploying smart contracts. It's already available in Hardhat 2 and has been adopted by many projects. The API hasn't changed in Hardhat 3: if you're familiar with it, you won't encounter any surprises.
+
+With Hardhat Ignition, you define the smart contract instances you want to deploy, along with any operations you want to perform on them. These definitions are grouped into Ignition Modules, which are then analyzed and executed in the most efficient way. This includes sending independent transactions in parallel, recovering from errors, and resuming interrupted deployments.
+
+The sample project includes an Ignition Module as an example. To learn more about how to write an Ignition module, please read [this document](https://hardhat.org/ignition/docs/guides/creating-modules).
+
+To deploy the example module in a simulated network, run the following command:
+
+<Run command="hardhat ignition deploy ignition/modules/Counter.ts" />
+
+This deployment is executed on the default network, which lasts only for the duration of the task. To simulate a deployment on a persistent network, follow these steps:
+
+1. Start a Hardhat node with:
+
+   <Run command="hardhat node" />
+
+2. Open another terminal and deploy the module to the Hardhat node:
+
+   <Run command="hardhat ignition deploy --network localhost ignition/modules/Counter.ts" />
+
+3. Run the same command again once the deployment finishes. Since the module has already been deployed, Ignition won't send any transactions.
+4. Without stopping the node, add the following line to the Ignition module in `ignition/modules/Counter.ts`:
+
+   ```ts {3}
+   // ignition/modules/Counter.ts
+   m.call(counter, "incBy", [5n]);
+
+   m.call(counter, "inc");
+
+   return { counter };
+   ```
+
+5. Run the command from step 2 once more. This time, only the new action runs.
+
+While Hardhat Ignition is our recommended approach for deploying contracts, you're free to use other tools. For example, you can use custom scripts for simple deployments or a deployment plugin from the community.
+
+## Managing secrets
+
+Hardhat 3 includes an encrypted secrets manager that makes it easier to handle sensitive information like private keys. This ensures you don't have to hardcode secrets in your source code or store them in plain text.
+
+The sepolia network configuration uses an encrypted secret for its RPC URL and private key:
+
+```js
+networks: {
+  sepolia: {
+    type: "http",
+    chainType: "l1",
+    url: configVariable("SEPOLIA_RPC_URL"),
+    accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+  },
+},
+```
+
+Run the following tasks to add these secrets:
+
+<Run
+  command={[
+    "hardhat keystore set SEPOLIA_RPC_URL",
+    "hardhat keystore set SEPOLIA_PRIVATE_KEY",
+  ]}
+/>
+
+::::tip
+
+If you don't have an RPC URL for Sepolia, you can use a public one like `https://sepolia.gateway.tenderly.co`. Keep in mind that public endpoints like this can be slower and less reliable.
+
+::::
+
+Once the secrets are set, you can deploy the Ignition module to Sepolia:
+
+<Run command="hardhat ignition deploy --network sepolia ignition/modules/Counter.ts" />
+
+Enter your password to decrypt the private key, confirm that you want to deploy to Sepolia, and wait until Hardhat Ignition finishes the deployment. After this, if you repeat the command, Ignition will detect that the module has already been deployed and won't send any new transactions.
+
+Secrets are only decrypted when needed, which means you only need to enter the password if a Hardhat task actually uses a secret.
+
+###
+
+---
+title: Verifying smart contracts
+description: How to verify a smart contract
+sidebar:
+  label: Verifying contracts
+  order: 4
+---
+
+import Install from "@hh/Install.astro";
+import Run from "@hh/Run.astro";
+
+Smart contract verification is used to prove that a deployed contract's bytecode comes from a specific source code. This allows users and tools to inspect the original source on block explorers, like Etherscan and Blockscout, and verification services, like Sourcify.
+
+In this guide, you'll learn how to verify your contracts using the `hardhat-verify` plugin.
+
+## Setup
+
+If you initialized your project using `hardhat --init`, you don’t need to do anything: `hardhat-verify` is already included as part of the template project.
+
+If you want to add the plugin manually:
+
+1. Install the plugin:
+
+   <Install packages="@nomicfoundation/hardhat-verify" />
+
+2. Add it to the list of plugins in your Hardhat configuration:
+
+   ```ts
+   // hardhat.config.ts
+   import { defineConfig } from "hardhat/config";
+   import hardhatVerify from "@nomicfoundation/hardhat-verify";
+
+   export default defineConfig({
+     plugins: [
+       hardhatVerify,
+       // ...other plugins...
+     ],
+     // ...other config...
+   });
+   ```
+
+## Configuration
+
+The `hardhat-verify` plugin adds a `verify` object to the Hardhat configuration. With it, you can configure the different block explorers to verify your contracts on.
+
+To verify contracts on Etherscan, you need to set an API key in your Hardhat configuration:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  // ...
+  verify: {
+    etherscan: {
+      apiKey: "YOUR_ETHERSCAN_API_KEY",
+    },
+  },
+});
+```
+
+You can get an Etherscan API key by following [this guide](https://docs.etherscan.io/etherscan-v2/getting-an-api-key).
+
+:::tip
+
+In the previous version of the Etherscan API, you needed a different API key for each chain. With Etherscan V2, a single API key works across all networks.
+
+:::
+
+To verify contracts on Blockscout and Sourcify, you don't need to set an API key, nor any config.
+
+You can also disable a block explorer by setting its `enabled` property to `false`. For example, you can disable Blockscout verification like this:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  // ...
+  verify: {
+    blockscout: {
+      enabled: false,
+    },
+  },
+});
+```
+
+## Verifying a contract
+
+To verify a contract, run the `verify` task with the contract's address and the network you deployed it to:
+
+<Run command="hardhat verify --network sepolia 0x1234567890..." />
+
+If your contract has constructor arguments, you have to also pass the values that were used during deployment. For example, if the contract received a `string` and a `uint` as constructor parameters:
+
+<Run command='hardhat verify --network sepolia 0x1234567890... "Hello" 1000' />
+
+If the arguments are too complex to pass directly in the shell—for example, an array of numbers—you can define them in a TypeScript or JavaScript file:
+
+```ts
+// constructor-args.ts
+const constructorArgs = ["Hello", [1000, 2000]];
+
+export default constructorArgs;
+```
+
+and then pass it with the `--constructor-args-path` flag:
+
+<Run command="hardhat verify --network sepolia --constructor-args-path constructor-args.ts 0x1234567890..." />
+
+## Using different build profiles
+
+By default, the `verify` task uses the `production` build profile, as this is the recommended build profile to build your contracts before deploying them. If you deploy your contracts with Hardhat Ignition, you automatically use the `production` build profile.
+
+If you want to use a different build profile, you can pass the `--build-profile` flag:
+
+<Run command="hardhat verify --network sepolia --build-profile default 0x1234567890..." />
+
+## Verifying contracts on different block explorers
+
+The plugin currently supports Etherscan, Blockscout, and Sourcify. You can use subtasks to verify on each of the block explorers:
+
+<Run command="hardhat verify etherscan ..." />
+
+These subtasks have the same interface, but verify on different services.
+
+Running `verify` without any subtask will verify on Etherscan, Blockscout, and Sourcify.
+
+## Verifying on a block explorer of a different network
+
+If you want to verify a contract on a block explorer of a network that isn't natively supported by the plugin, you can set a chain descriptor in your Hardhat configuration to add support for that network.
+
+Adding a chain descriptor for a network called "ExampleChain", with chain id `123456`, would look like this:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  // ...
+  chainDescriptors: {
+    // Example chain
+    123456: {
+      name: "ExampleChain",
+      blockExplorers: {
+        etherscan: {
+          name: "ExampleScan",
+          url: "https://example.scan",
+          apiUrl: "https://example.scan/api",
+        },
+        // other explorers...
+      },
+    },
+  },
+});
+```
+
+## Troubleshooting
+
+Your verification might fail for a variety of reasons. Here are some common issues and how to fix them:
+
+- **Verifying immediately after deploying**. Your contracts may not have been indexed by the block explorer yet, causing the verification to fail. Normally, waiting a minute is enough for it to work.
+- **Wrong constructor arguments**. Double-check that your constructor arguments are correct.
+- **Using code that is different from the one used for deployment**. If you are trying to verify a contract that you have deployed weeks ago, then chances are that the code has changed in the meantime. Double-check that you are using the correct code.
+- **Using a different build profile**. If you are using a different build profile than the one used for deployment, then the bytecode will be different, causing the verification to fail. Try using `--build-profile` with other profiles to verify your contract, beginning with `default`. You may also need to run `hardhat build` with the same build profile to generate the correct artifacts.
+
+
+####
+
+---
+title: Configuring the compiler
+description: How to configure the compiler
+sidebar:
+  order: 5
+---
+
+Solidity compilation in Hardhat is fully customizable. This guide explains the main ways in which compilation can be configured.
+
+## Configuring the compiler version and settings
+
+The simplest way to configure compilation is to specify the solc compiler version and, optionally, its settings:
+
+```ts
+solidity: {
+  version: "0.8.29",
+  settings: {
+    /* solc settings */
+  }
+},
+```
+
+One common use of settings is enabling optimizations. You can also define the number of runs, which affects how the optimizer balances code size and execution cost:
+
+```ts
+solidity: {
+  version: "0.8.29",
+  settings: {
+    optimizer: {
+      enabled: true,
+      runs: 200
+    }
+  }
+},
+```
+
+Another use case is enabling the [IR-based code generator](https://docs.soliditylang.org/en/latest/ir-breaking-changes.html). This compilation mode can be slower, but it enables more powerful optimizations:
+
+```ts
+solidity: {
+  version: "0.8.29",
+  settings: {
+    viaIR: true
+  }
+},
+```
+
+The `settings` property accepts the same options supported by the chosen compiler version. For the full details, check [solc's documentation](https://docs.soliditylang.org/en/latest/).
+
+## Using multiple solidity versions
+
+Some projects need to compile different files with different solc versions. To enable this, Hardhat lets you define multiple compiler configurations using an extended format of the `solidity` property:
+
+```ts
+solidity: {
+  compilers: [
+    {
+      version: "0.7.6"
+    },
+    {
+      version: "0.8.11"
+    },
+    {
+      version: "0.8.29",
+      settings: {
+        optimizer: { enabled: true }
+      }
+    }
+  ]
+},
+```
+
+Hardhat compiles each Solidity file in the project using the **highest configured solc version** that is compatible with the version pragma of the file and its dependencies.
+
+For example, given the configuration above:
+
+- A file with `pragma solidity ^0.8.0` will be compiled with solc `0.8.29`, even though `0.8.11` is also compatible with it.
+- A file with `pragma solidity ^0.7.0` will use solc `0.7.6`, which is the only valid matching version.
+
+## Overriding configured compilers
+
+Some projects need to compile specific files using a different compiler version than Hardhat's default choice. You can handle this with the `overrides` property:
+
+```ts
+solidity: {
+  compilers: [
+    /* configured compilers */
+  ],
+  overrides: {
+    "contracts/Foo.sol": {
+      version: "0.8.11"
+    }
+  }
+},
+```
+
+In this case, `Foo.sol` will always be compiled with solc 0.8.11, regardless of the versions defined in `solidity.compilers`.
+
+Each entry in the `overrides` object maps a file to a custom compiler configuration. Just like the main configuration, only the `version` field is mandatory.
+
+You can use overrides even if you are using a single solc version, but you still need to use the extended format of the `solidity` property. For example, you can enable the optimizer only for a single file:
+
+```ts
+solidity: {
+  compilers: [
+    {
+      version: "0.8.29",
+    }
+  ],
+  overrides: {
+    "contracts/Foo.sol": {
+      version: "0.8.29",
+      settings: {
+        optimizer: {
+          enabled: true
+        }
+      }
+    }
+  }
+},
+```
+
+{/* ## Using remappings -- TODO—blocked until dependency resolution is finalized. */}
+
+## Using a custom compiler
+
+Hardhat supports custom compilers like [solx](https://solx.zksync.io). You need to manually download the compiler binary (e.g. [solx releases page](https://github.com/matter-labs/solx/releases)) and reference it in the Solidity settings of the `hardhat.config.ts` file.
+
+You can configure the path to the custom compiler binary using the `path` property. This property can be used in both the simple and extended formats of the `solidity` property. For example, using the simple format:
+
+```ts
+solidity: {
+  version: "0.8.29",
+  path: "/path/to/solx" // Replace with the actual path to the solx binary
+},
+```
+
+Or using the extended format:
+
+```ts
+solidity: {
+  compilers: [
+    {
+      version: "0.8.29",
+      path: "/path/to/solx"
+    }
+  ]
+},
+```
+
+## Generating artifacts from npm dependencies
+
+By default, Hardhat generates compilation artifacts for all the contracts in your project, but not for those in the project's npm dependencies. If you want to generate artifacts for a specific file in a dependency, you can use the `npmFilesToBuild` property:
+
+```ts
+solidity: {
+  version: "0.8.29",
+  npmFilesToBuild: [
+    "some-dependency/contracts/SomeContract.sol"
+  ]
+},
+```
+
+Artifacts can be used to deploy contracts or to obtain their ABIs, among other things. For example, once you've configured Hardhat to generate artifacts for `some-dependency/contracts/SomeContract.sol`, you can use that contract in a TypeScript test:
+
+```ts
+const someContract = await viem.deployContract("SomeContract");
+```
+
+###
+
+---
+title: Managing config values and secrets safely
+description: How to to manage config variables and secrets safely
+sidebar:
+  label: Managing config values and secrets
+  order: 6
+---
+
+import Run from "@hh/Run.astro";
+
+Hardhat projects often need values that shouldn’t be committed to shared repositories, like private keys or API keys.
+
+Hardhat 3 offers _Config Variables_ to handle this in a secure way, either encrypted (using `hardhat-keystore`) or not, depending on what you need.
+
+By default, config variables are read from environment variables, but plugins can define alternative ways to obtain their values.
+
+This guide covers how to use _Config Variables_ and the `hardhat-keystore` plugin to securely store sensitive values.
+
+## Using config variables
+
+A common example of a value that you don’t want to hardcode is an RPC URL that includes an API key, such as one from [Alchemy](https://www.alchemy.com/) or [Infura](https://www.infura.io/):
+
+```ts
+const config = {
+  networks: {
+    sepolia: {
+      url: "https://eth-sepolia.g.alchemy.com/v2/ABC123...",
+      // ...
+    },
+  },
+};
+```
+
+Instead of this, you can call the `configVariable` function to get the value at runtime:
+
+```ts
+import { configVariable } from "hardhat/config";
+
+const config = {
+  networks: {
+    sepolia: {
+      url: configVariable("SEPOLIA_RPC_URL"),
+      // ...
+    },
+  },
+};
+```
+
+In the snippet above, Hardhat will look for an environment variable named `SEPOLIA_RPC_URL` when it needs the value. You can define it inline when running a task:
+
+<Run
+  prefix="SEPOLIA_RPC_URL='<https://eth-sepolia.g.alchemy.com/v2/ABC123>...'"
+  command="hardhat run ./my-script.ts --network sepolia"
+/>
+
+_Config Variables_ are lazy, meaning that they're only resolved when actually needed. This allows you to use Hardhat without having to define all of them upfront if they're not going to be used for what you are doing.
+
+## Managing secrets with the `hardhat-keystore` plugin
+
+Resolving _Config Variables_ from environment variables isn't safe (due to command history storage, among other things) nor convenient. The `hardhat-keystore` plugin lets you store sensitive values in an encrypted file and use them as config variables, without having to type them every time or commit them to disk in plain text, where they can be stolen.
+
+### Setup
+
+If you are using a Hardhat Toolbox or created a sample project using Hardhat 3, you already have the plugin installed.
+
+Otherwise, check out [the `hardhat-keystore` documentation](/docs/plugins/hardhat-keystore) to install it.
+
+### Using the keystore
+
+Use the `keystore set` task to store an encrypted secret:
+
+<Run command="hardhat keystore set SEPOLIA_RPC_URL" />
+
+When you run this task for the first time, you’ll be prompted to create a password for your keystore. After that you’ll need to enter that password to confirm the operation every time you add a new value. The secret is then stored encrypted in a file in your home directory.
+
+Once a value is stored in the keystore, you can use it in your configuration:
+
+```ts {6}
+import { configVariable } from "hardhat/config";
+
+const config = {
+  networks: {
+    sepolia: {
+      url: configVariable("SEPOLIA_RPC_URL"),
+      // ...
+    },
+  },
+};
+```
+
+Hardhat will prompt you to enter the password when the configuration variable is needed.
+
+### Managing encrypted variables
+
+To manage your keystore, the plugin provides the following self-explanatory tasks:
+
+<Run
+  command={[
+    "hardhat keystore list",
+    "hardhat keystore get <key>",
+    "hardhat keystore delete <key>",
+    "hardhat keystore change-password",
+    "hardhat keystore path",
+  ]}
+/>
+
+### Improving UX when using keystore values during the dev process
+
+To avoid repeatedly writing the keystore password when working locally with values that aren't sensitive, you can use the _Development Keystore_, a separate keystore which doesn't ask for the password when the values are accessed. This allows you to keep the keystore setup when security isn't relevant during the development process.
+To use it just store the values adding the `--dev` flag:
+
+<Run command="hardhat keystore set --dev <key>" />
+
+{/* A section called "Combining environment and encrypted variables" was removed. Look at the commit history to restore it. */}
+
+###
+
+---
+title: Getting help
+description: How to get help about Hardhat 3
+sidebar:
+  order: 8
+---
+
+Hardhat has a strong community of users willing to help you in times of trouble. Please read this entire guide to learn where and how to ask for help more effectively.
+
+The first place to look for answers is the [GitHub Discussions section in the Hardhat repository.](https://github.com/NomicFoundation/hardhat/discussions) We recommend you search there first, as the answer may already exist.
+
+If you can't find what you are looking for on GitHub Discussions, you can [create a new Discussion](https://github.com/NomicFoundation/hardhat/discussions/new).
+
+If you didn't have any luck on GitHub, or if you prefer a real-time chat, you can join our [Discord Server](https://hardhat.org/discord). Please read its rules and ask for help in the right channel.
+
+## Asking an effective question
+
+To increase the chances of getting an answer quickly on GitHub Discussions and Discord, you need to make sure you write a good question first. To do so, you need to include:
+
+1. A clear description of what you are trying to do.
+2. The results you are getting, and how they differ from what you expect.
+3. Which version of Hardhat you are running, and which plugins and their versions you are using.
+4. Very specific and concise instructions on how to reproduce your problem. Ideally, provide a [minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example). Another good option is to provide a link to a public repository that provides an easy environment to reproduce the problem.
+
+## Reporting a bug
+
+If you think you've found a bug in Hardhat, please [report it](https://github.com/NomicFoundation/hardhat/issues/new?template=bug-report.yml).
+
+However, _before_ reporting a bug, please follow these steps to ensure that a new bug report is actually warranted:
+
+1. Make sure you are using the latest version of Hardhat and its plugins. Your problem may already be fixed.
+2. Try to determine whether the issue is coming from a plugin by running your project with some of them disabled. We only accept bug reports for plugins published by us, all of which start with `@nomicfoundation/`. If you find an issue with a plugin published by someone else, you may be able to raise it with that publisher.
+3. Use the search on GitHub to try to find other reports of the same problem. If you find one, please comment on the existing issue instead of creating a new one.
+
+Whenever reporting a bug, and ideally whenever commenting on an existing Issue, please include all the information described in [Asking an effective question](#asking-an-effective-question). By providing as much information as possible, you greatly increase the chances of your problem getting fixed quickly.
+
+
+###
+
+---
+title: Cookbook
+description: Cookbook
+sidebar:
+  order: 9
+---
+
+This section contains a collection of recipes for common tasks.
+
+We encourage you to contribute your own recipes to this section, by submitting a pull request to this [document](https://github.com/NomicFoundation/hardhat-website/edit/main/src/content/docs/docs/guides/cookbook.mdx).
+
+## Using Hardhat 3 with a proxy server
+
+Hardhat supports the `http_proxy` environment variable. When this variable is set, Hardhat will send its requests through the given proxy for things like JSON-RPC requests, mainnet forking and downloading compilers.
+
+There's also support for the `no_proxy` variable, which accepts a comma separated list of hosts or `"*"`. Any host included in this list will not be proxied. Note that requests to `"localhost"` or `"127.0.0.1"` are never proxied.
+
+
+###
+
+---
+title: Gas statistics of your test runs
+description: How to get gas statistics from your test runs
+---
+
+import Run from "@hh/Run.astro";
+
+Hardhat can optionally show statistics on the gas consumed by your contracts' public functions during a test run. Use the `--gas-stats` flag when running your tests to display this information.
+
+## Getting gas statistics from your tests
+
+You can pass the `--gas-stats` flag to either the `test` task or to one of its subtasks (e.g., `test solidity`):
+
+<Run
+  command={[
+    "hardhat test --gas-stats",
+    "hardhat test solidity --gas-stats",
+    "hardhat test nodejs --gas-stats",
+  ]}
+/>
+
+This prints a table like the following:
+
+```
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║                                  Gas Usage Statistics                                   ║
+╚═════════════════════════════════════════════════════════════════════════════════════════╝
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║ contracts/Calculator.sol:Calculator                                                     ║
+╟───────────────────────────────────┬─────────────────┬─────────┬────────┬───────┬────────╢
+║ Function name                     │ Min             │ Average │ Median │ Max   │ #calls ║
+╟───────────────────────────────────┼─────────────────┼─────────┼────────┼───────┼────────╢
+║ divide                            │ 44316           │ 44316   │ 44316  │ 44316 │ 1      ║
+║ multiply(uint256,uint256)         │ 44254           │ 44254   │ 44254  │ 44254 │ 2      ║
+║ multiply(uint256,uint256,uint256) │ 44875           │ 44875   │ 44875  │ 44875 │ 1      ║
+║ reset                             │ 21485           │ 21485   │ 21485  │ 21485 │ 1      ║
+║ result                            │ 23510           │ 23510   │ 23510  │ 23510 │ 6      ║
+║ subtract                          │ 44213           │ 44213   │ 44213  │ 44213 │ 1      ║
+╟───────────────────────────────────┼─────────────────┼─────────┴────────┴───────┴────────╢
+║ Deployment Cost                   │ Deployment Size │                                   ║
+╟───────────────────────────────────┼─────────────────┤                                   ║
+║ 288115                            │ 1120            │                                   ║
+╚═══════════════════════════════════╧═════════════════╧═══════════════════════════════════╝
+╔═════════════════════════════════════════════════════════════════════════════════════════╗
+║ contracts/Counter.sol:Counter                                                           ║
+╟───────────────────────────────────┬─────────────────┬─────────┬────────┬───────┬────────╢
+║ Function name                     │ Min             │ Average │ Median │ Max   │ #calls ║
+╟───────────────────────────────────┼─────────────────┼─────────┼────────┼───────┼────────╢
+║ add(uint256)                      │ 43915           │ 43915   │ 43915  │ 43915 │ 1      ║
+║ add(uint256,bool)                 │ 44284           │ 44419   │ 44419  │ 44554 │ 2      ║
+║ inc                               │ 43482           │ 43482   │ 43482  │ 43482 │ 1      ║
+║ x                                 │ 23466           │ 23466   │ 23466  │ 23466 │ 5      ║
+╟───────────────────────────────────┼─────────────────┼─────────┴────────┴───────┴────────╢
+║ Deployment Cost                   │ Deployment Size │                                   ║
+╟───────────────────────────────────┼─────────────────┤                                   ║
+║ 234940                            │ 870             │                                   ║
+╚═══════════════════════════════════╧═════════════════╧═══════════════════════════════════╝
+```
+
+The statistics are collected from the functions called by the tests you executed. This means that running `test solidity --gas-stats` will produce a different result than running `test nodejs --gas-stats`, because different tests will have been run.
+
+## Understanding the Gas Statistics Table
+
+The gas statistics table shows the following information for each function:
+
+- **count**: Number of times the function was called
+- **min**: Minimum gas consumed in a single call
+- **max**: Maximum gas consumed in a single call
+- **avg**: Average gas consumed across all calls
+- **median**: Median gas consumed across all calls
+
+For deployments, the table shows:
+
+- **gas**: Gas cost of executing the deployment
+- **size**: Size of the deployed bytecode in bytes
+
+### Functions included in gas statistics
+
+Gas statistics only include public functions that are called directly by your tests. If a public function is called by another function but not directly by a test, it won't be included in the statistics.
+
+For example, consider this contract:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract Counter {
+  uint256 public count;
+
+  function inc() public {
+    _incInternal();
+  }
+
+  function _incInternal() private {
+    count++;
+  }
+
+  function incBy(uint256 value) public {
+    count += value;
+  }
+
+  function reset() public {
+    count = 0;
+  }
+}
+```
+
+And this test:
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "./Counter.sol";
+
+contract CounterTest {
+  Counter counter;
+
+  function setUp() public {
+    counter = new Counter();
+  }
+
+  function testInc() public {
+    counter.inc();
+  }
+
+  function testIncBy() public {
+    counter.incBy(5);
+  }
+}
+```
+
+The output will be:
+
+```
+╔═══════════════════════════════════════════════════════════════════════╗
+║                         Gas Usage Statistics                          ║
+╚═══════════════════════════════════════════════════════════════════════╝
+╔═══════════════════════════════════════════════════════════════════════╗
+║ contracts/Counter.sol:Counter                                         ║
+╟─────────────────┬─────────────────┬─────────┬────────┬───────┬────────╢
+║ Function name   │ Min             │ Average │ Median │ Max   │ #calls ║
+╟─────────────────┼─────────────────┼─────────┼────────┼───────┼────────╢
+║ inc             │ 43484           │ 43484   │ 43484  │ 43484 │ 1      ║
+║ incBy           │ 43937           │ 43937   │ 43937  │ 43937 │ 1      ║
+╟─────────────────┼─────────────────┼─────────┴────────┴───────┴────────╢
+║ Deployment Cost │ Deployment Size │                                   ║
+╟─────────────────┼─────────────────┤                                   ║
+║ 179915          │ 616             │                                   ║
+╚═════════════════╧═════════════════╧═══════════════════════════════════╝
+```
+
+The statistics include `inc` and `incBy` because they're called directly by the tests. The `reset()` function doesn't appear because it's never called by the tests. The `_incInternal()` function doesn't appear because it's private and only called by `inc()`, not directly by the tests.
+
+
+#######
+
+---
+title: What's new in Hardhat 3
+description: What's new in Hardhat 3
+sidebar:
+  order: 1
+---
+
+Hardhat 3 comes with many new features and improvements. Most of these changes are backwards-compatible or easy to adapt to existing projects.
+
+### Support for Solidity Tests
+
+Hardhat 3 comes with Foundry-compatible Solidity tests, which are fast and ideal for unit testing, and also work great for fuzz and invariant tests. Writing integration tests in TypeScript is still supported and can be used alongside Solidity tests.
+
+Learn more in [our Solidity tests guide](/docs/guides/writing-solidity-tests).
+
+### Multichain support
+
+Hardhat 2's development network always behaves like Ethereum Mainnet. Hardhat 3 removes this limitation, letting you choose which kind of chain you want to simulate. And, unlike Hardhat 2, you can configure multiple simulated networks, each with its own chain type.
+
+The initial release includes first-class support for Ethereum Mainnet and OP Mainnet, and we'll gradually add new chain types over time. In the meantime, a generic chain type can be used as a fallback for networks that are not yet supported. This generic chain type behaves the same as Hardhat Network in Hardhat 2 and works with all of Hardhat 3's new features.
+
+### ESM-first
+
+Hardhat 3 embraces modern JavaScript by using [ECMAScript Modules (ESM)](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules) by default. Configuration files must now use ESM, although CommonJS (CJS) modules are still supported in scripts and tests.
+
+### Network manager
+
+A Hardhat 2 task has access to a single, fixed connection for its entire duration. In Hardhat 3, connections are managed explicitly, and tasks can create and use multiple connections simultaneously.
+
+### Test Runner Plugins
+
+In Hardhat 2, JavaScript tests are always run with a bundled version of Mocha. In Hardhat 3, the test runner is just another plugin and you can choose which one to use. We have official plugins for Mocha and for [Node.js's built-in test runner](https://nodejs.org/api/test.html). The recommended option is the Node.js test runner, because it's fast and has no external dependencies.
+
+### Built-in Solidity code coverage
+
+Hardhat 3 comes with built-in Solidity code coverage, which works out of the box both in Solidity and TypeScript tests. All you need to do is run your tests with `--coverage`.
+
+### Declarative Configuration
+
+Hardhat 3 configuration is now fully declarative. This contrasts with Hardhat 2, where part of the configuration came from the side effects of importing plugins or calling configuration functions like `task`.
+
+### Configuration Variables
+
+Hardhat 3 has support for Configuration Variables: values of the config that will only be loaded when needed. A similar feature already exists in Hardhat 2, but Hardhat 3's configuration variables are lazy and extensible.
+
+By default, their values are loaded from environment variables, but this behavior can be customized by plugins. Hardhat 3 comes with an official plugin that lets you store them encrypted on disk.
+
+### Build profiles
+
+Hardhat 3 introduces support for build profiles, which let you define different compilation settings for different workflows.
+
+### Full npm support
+
+Anything that can be done with npm is now supported by the build system of Hardhat 3. In most cases, this won't affect you, but advanced scenarios that were difficult or impossible now work out of the box.
+
+### New plugin system
+
+Hardhat 3 comes with a new hook system that enables easy extension of core functionality and allows plugin authors to add their own extensibility points.
+
+### Typed artifacts
+
+Hardhat 3 generates TypeScript declarations to have typed artifacts by default. These artifacts can be used by plugins to derive contract type information without a code generation step.
+
+### Programmatic initialization of the Hardhat Runtime Environment
+
+Apart from accessing a global instance of the Hardhat Runtime Environment by importing it from the `hardhat` module, you can now initialize multiple independent instances of the HRE programmatically.
+
+###
+
+---
+title: Beta status
+description: Hardhat 3 beta status
+sidebar:
+  order: 2
+---
+
+Hardhat 3 is production-ready and you can migrate today!
+
+We'll keep it in beta status as we work on missing features and stabilize it in the near future.
+
+## Migration readiness
+
+We don't expect any major user-facing breaking change in the API, so we encourage projects to migrate to Hardhat 3.
+
+Take a look at the [migration guide](/docs/migrate-from-hardhat2) to see how to do it.
+
+## Work in progress features
+
+There are some features that are still in development, and should be released soon:
+
+- Gas snapshots: The ability to take gas snapshots and compare them is still under development.
+
+## Migration blockers
+
+If your migration is blocked by a missing feature or plugin, please let us know [in this issue](https://github.com/NomicFoundation/hardhat/issues/7207).
+
+## Plugin APIs
+
+The plugin APIs are still in beta status, and we may release small breaking changes in the future. If you are developing a plugin, please keep this in mind, and get in touch with us if you have any questions.
+
+###
+
+---
+title: Migrate to Hardhat 3
+description: How to migrate to Hardhat 3
+sidebar:
+  order: 3
+---
+
+To learn how to migrate a Hardhat 2 project to Hardhat 3, check out the [migration guide](/docs/migrate-from-hardhat2).
+
+#####
+
+---
+title: Configuration
+description: Hardhat 3 configuration reference
+sidebar:
+  order: 1
+---
+
+:::tip
+
+Hardhat 3 is production-ready and you can migrate today! We'll keep it in beta status as we work on missing features and stabilize it in the near future.
+
+:::
+
+When Hardhat is run, it searches for the closest `hardhat.config.ts` file starting from the Current Working Directory. This file normally lives in the root of your project. An empty `hardhat.config.ts` is enough for Hardhat to work.
+
+The entirety of your Hardhat setup (i.e. your config, plugins and custom tasks) is contained in this file.
+
+## Available config options
+
+To set up your config, you have to export an object from `hardhat.config.ts`.
+
+The config options available will depend on the Hardhat plugins you have installed. However, there are some [standard options](#standard-options) that come from built-in Hardhat plugins and are always available. Additionally, regardless of which of our `hardhat-toolbox` plugins you have installed, there are some [toolbox options](#toolbox-options) that are common to both of them, while other options are specifically available in either the [Viem](#viem-toolbox-options) or [Ethers](#ethers-toolbox-options) toolbox plugins.
+
+## Standard options
+
+The following options are available even if you don't include any plugins:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  paths: {
+    sources: "./contracts",
+    tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts",
+  },
+  solidity: {
+    version: "{RECOMMENDED_SOLC_VERSION}",
+    settings: {
+      /* solc settings */
+    },
+  },
+  networks: {
+    hardhatMainnet: {
+      type: "edr-simulated",
+      chainType: "l1",
+    },
+    hardhatOp: {
+      type: "edr-simulated",
+      chainType: "op",
+    },
+    sepolia: {
+      type: "http",
+      chainType: "l1",
+      url: configVariable("SEPOLIA_RPC_URL"),
+      accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+    },
+  },
+  test: {
+    solidity: {
+      timeout: 40000,
+      // other solidity tests options
+    },
+  },
+});
+```
+
+:::tip
+
+You can find more info about using Hardhat configuration variables in the [configuration variable guide](/docs/guides/configuration-variables).
+
+:::
+
+### Path configuration
+
+You can customize the different paths that Hardhat uses by providing an object to the `paths` field with the following keys:
+
+- `sources`: The directory where your contracts are stored. This path is resolved relative to your Hardhat config file. Default value: `'./contracts'`.
+- `tests`: The directory where your tests are located, or an object containing fields for each installed test runner that points to their respective test locations. This path is resolved relative to your Hardhat config file. Default value: `'./test'`.
+- `cache`: The directory used by Hardhat to cache its internal stuff. This path is resolved relative to your Hardhat config file. Default value: `'./cache'`.
+- `artifacts`: The directory where the compilation artifacts are stored. This path is resolved relative to your Hardhat config file. Default value: `'./artifacts'`.
+
+### Solidity configuration
+
+The `solidity` config is an optional field that can be one of the following:
+
+- A solc version to use, e.g. `"{RECOMMENDED_SOLC_VERSION}"`.
+- An array of solc versions to use, e.g. `["0.7.6", "{RECOMMENDED_SOLC_VERSION}"]`.
+- An object which describes the configuration for a single compiler. It contains the following keys:
+  - `version`: The solc version to use.
+  - `settings`: An object with the same schema as the `settings` entry in the [Input JSON](https://docs.soliditylang.org/en/latest/using-the-compiler.html#input-description).
+  - `preferWasm`: If true, forces Hardhat to use the WebAssembly (wasm) build of solc instead of a native binary. This can improve build reproducibility across platforms, at the cost of slower compilation times.
+  - `npmFilesToBuild`: A list of source names for which Hardhat should generate artifacts in addition to your project's own sources.
+  - `path`: An optional path to a local Solidity compiler. If provided, this will be used instead of downloading a solc version.
+- An object which describes multiple compilers and their respective configurations. It contains the following:
+  - `compilers`: A list of compiler configuration objects like the one above.
+  - `overrides`: An optional map of compiler configuration override objects. This maps file names to compiler configuration objects.
+  - `preferWasm`: See above.
+  - `npmFilesToBuild`: See above.
+- An object which describes multiple build profiles and their respective configurations. It contains the following:
+  - `profiles`: A map of build profile names to compiler configuration objects like the one above.
+  - `npmFilesToBuild`: See above.
+
+#### Default EVM Version
+
+The default EVM version changes based on the compiler version. To specify a different EVM version, modify your `hardhat.config.ts`:
+
+```js
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  solidity: {
+    version: "0.8.21",
+    settings: {
+      evmVersion: "shanghai",
+    },
+  },
+});
+```
+
+### Network configuration
+
+The `networks` config field is an optional object where network names map to their configuration.
+
+There are two kinds of networks in Hardhat: in-memory simulated networks and [JSON-RPC](https://eth.wiki/json-rpc/API) based networks. You can use either of these by setting the `type` field in the network configuration to either `edr-simulated` or `http`, respectively.
+
+Additionally, simulated networks can be used to test your contracts in different environments, such as Optimism or layer 1 Ethereum, by setting the `chainType` field to either `op` or `l1`, respectively.
+
+There are a number of options that both network types share, as well as some that are specific to each type.
+
+#### Shared network options
+
+The following options are available for both simulated and JSON-RPC networks:
+
+- `type`: The type of the network. This can be either `edr-simulated` for simulated networks or `http` for JSON-RPC networks.
+- `chainId`: An optional number, used to validate the network Hardhat connects to. If not present, this validation is omitted.
+- `chainType`: Determines the type of chain for this network. This can be either `l1` for layer 1 networks like Ethereum, `op` for layer 2 networks like Optimism, or `generic` for other types of networks. Default value: `generic`.
+- `from`: The address to use as default sender. If not present the first account of the node is used.
+- `gas`: Its value should be `"auto"` or a number or bigint. If a number or bigint is used, it will be the gas limit used by default in every transaction. If `"auto"` is used, the gas limit will be automatically estimated. Default value: `"auto"`.
+- `gasMultiplier`: A number used to multiply the results of gas estimation to give it some slack due to the uncertainty of the estimation process. Default value: `1`.
+- `gasPrice`: Its value should be `"auto"` or a number or bigint. This parameter behaves like `gas`. Default value: `"auto"`.
+
+#### Simulated network options
+
+The following options are specific to simulated networks:
+
+- `accounts`: This field controls which accounts Hardhat uses. It can use a list of local accounts (by setting it to an array of `{privateKey, balance}` objects) or an [HD Wallet](#hd-wallet-config). Default value: an HD Wallet with 20 unlocked accounts and a balance of 10,000 ETH each.
+- `allowBlocksWithSameTimestamp`: A boolean to allow mining blocks that have the same timestamp. This is not allowed by default because Ethereum's consensus rules specify that each block should have a different timestamp. Default value: `false`.
+- `allowUnlimitedContractSize`: An optional boolean that disables the contract size limit imposed by [EIP-170](https://eips.ethereum.org/EIPS/eip-170). Default value: `false`.
+- `blockGasLimit`: The block gas limit to use in Hardhat Network's blockchain. Default value: `30_000_000`.
+- `coinbase`: The address used as coinbase in new blocks. Default value: `"0xc014ba5ec014ba5ec014ba5ec014ba5ec014ba5e"`.
+- `forking`: An object that describes the forking configuration and can have the following fields:
+  - `url`: a URL that points to a JSON-RPC node with state that you want to fork off. There's no default value for this field. It must be provided for the fork to work.
+  - `blockNumber`: an optional number to pin which block to fork from. If no value is provided, the latest block is used.
+  - `enabled`: an optional boolean to switch on or off the fork functionality. Default value: `true` if `url` is set, `false` otherwise.
+- `hardfork`: This setting changes how Hardhat Network works, to mimic Ethereum's mainnet at a given hardfork. It must be one of `"byzantium"`, `"constantinople"`, `"petersburg"`, `"istanbul"`, `"muirGlacier"`, `"berlin"`, `"london"`, `"arrowGlacier"`, `"grayGlacier"`, `"merge"`, `"shanghai"`, `"cancun"` and `"prague"`. Default value: `"prague"`.
+- `initialBaseFeePerGas`: The `baseFeePerGas` of the first block. Note that when forking a remote network, the "first block" is the one immediately after the block you forked from. This field must not be present if `hardfork` is not `"london"` or a later one. Default value: `"1000000000"` if not forking. When forking a remote network, if the remote network uses EIP-1559, the first local block will use the right baseFeePerGas according to the EIP, otherwise `"10000000000"` is used.
+- `initialDate`: An optional string setting the date of the blockchain. Valid values are [Javascript's date time strings](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse#Date_Time_String_Format). Default value: the current date and time if not forking another network. When forking another network, the timestamp of the block you forked from, plus one second, is used.
+- `loggingEnabled`: A boolean that controls if a simulated network logs every request or not. Default value: `false` for in-process simulated networks, `true` for the simulated network used by the `node` task.
+- `minGasPrice`: The minimum `gasPrice` that a transaction must have. This field must not be present if the `hardfork` is `"london"` or a later one. Default value: `"0"`.
+- `mining`: An object that configures the mining behavior and can have the following fields:
+  - `auto`: a boolean used to enable automine. Default value: `true`.
+  - `interval`: a number or an array with two numbers to enable interval mining. If the value is a number, blocks will be automatically mined every `interval` milliseconds. If the value is an array, blocks will be mined at random intervals between the two numbers.
+  - `mempool`: an object with an `order` field that can be set to `"fifo"` or `"priority"`. When set to `"fifo"`, transactions in the mempool are mined in FIFO order. When set to `"priority"`, they will be mined based on the fees paid to the miner. Default value: `"priority"`.
+- `throwOnCallFailures`: A boolean that controls if simulated networks throw on call failures. If this value is `true`, Hardhat will throw combined JavaScript and Solidity stack traces when a call fails. If it is `false`, it will return the call's return data, which can contain a revert reason. Default value: `true`.
+- `throwOnTransactionFailures`: A boolean that controls if simulated networks throw on transaction failures. If this value is `true`, Hardhat will throw combined JavaScript and Solidity stack traces on transaction failures. If it is `false`, it will return the failing transaction hash. In both cases the transactions are added into the blockchain. Default value: `true`.
+
+#### JSON-RPC network options
+
+The following options are specific to JSON-RPC networks:
+
+- `accounts`: This field controls which accounts Hardhat uses. It can use the node's accounts (by setting it to `"remote"`), a list of local accounts (by setting it to an array of [configuration variables](/docs/guides/configuration-variables)), or use an [HD Wallet](#hd-wallet-config). Default value: `"remote"`.
+- `url`: The URL of the node, passed in via [configuration variable](/docs/guides/configuration-variables). This argument is required for HTTP networks.
+- `httpHeaders`: An optional object with headers to be sent in every request to the node. This can be useful for authentication or other purposes.
+- `timeout`: An optional number that specifies the timeout for requests to the node, in milliseconds.
+
+#### HD Wallet config
+
+To use an [HD Wallet](https://github.com/ethereumbook/ethereumbook/blob/develop/05wallets.asciidoc#hd_wallets) with Hardhat you should set your network's `accounts` field to an object with the following fields:
+
+- `mnemonic`: A required string with the mnemonic phrase of the wallet. Passed in via [configuration variable](/docs/guides/configuration-variables).
+- `path`: The HD parent of all the derived keys. Default value: `"m/44'/60'/0'/0"`.
+- `initialIndex`: The initial index to derive. Default value: `0`.
+- `count`: The number of accounts to derive. Default value: `20`.
+- `passphrase`: The passphrase for the wallet, passed in via [configuration variable](/docs/guides/configuration-variables). Default value: empty string.
+- `accountsBalance`: **Only available in simulated networks.** The balance of the accounts derived from the HD wallet.
+
+For example:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  networks: {
+    sepolia: {
+      type: "http",
+      chainType: "l1",
+      url: configVariable("SEPOLIA_RPC_URL"),
+      accounts: {
+        mnemonic: configVariable("ACCOUNTS_MNEMONIC"),
+        path: "m/44'/60'/0'/0",
+        initialIndex: 0,
+        count: 20,
+        passphrase: configVariable("ACCOUNTS_PASSPHRASE"),
+        // only available when network type === "edr-simulated"
+        accountsBalance: 10n ** 18n, // 1 ETH in wei
+      },
+    },
+  },
+});
+```
+
+### Solidity tests configuration
+
+By default, Hardhat includes support for tests written in Solidity to test your contracts. You can use the `test.solidity` entry to configure how they behave. For example, the following config enables `isolate` mode:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  test: {
+    solidity: {
+      isolate: true,
+    },
+  },
+});
+```
+
+The following options are available for configuring Solidity tests:
+
+:::warning
+
+Giving write access to configuration files, source files or executables in a project is considered dangerous, because it can be used by malicious Solidity dependencies to escape the EVM sandbox.
+It is therefore recommended to give write access to specific safe files only.
+If write access to a directory is needed, please make sure that it doesn't contain configuration files, source files or executables neither in the top level directory, nor in any subdirectories.
+
+:::
+
+- `fsPermissions`: An optional object to configure file system permissions for cheatcodes. Defaults to no permissions. Exact path matching is used for file permissions. Prefix matching is used for directory permissions.
+  - `readFile`: An array of file paths that can be read.
+  - `writeFile`: An array of file paths that can be written.
+  - `readWriteFile`: An array of file paths that can be both read and written.
+  - `readDirectory`: An array of directory paths. All files and directories inside these directories can be read.
+  - `dangerouslyWriteDirectory`: An array of directory paths. All files and directories inside these directories can be written. See warning above to understand why it's dangerous.
+  - `dangerouslyReadWriteDirectory`: An array of directory paths. All files and directories inside these directories can be both read and written. See warning above to understand why it's dangerous.
+- `isolate`: Whether to enable isolation of calls. In isolation mode all top-level calls are executed as a separate transaction in a separate EVM context, enabling more precise gas accounting and transaction state changes. Defaults to false.
+- `ffi`: Whether or not to enable the ffi cheatcode. **Warning**: Enabling this cheatcode has security implications, as it allows tests to execute arbitrary programs on your computer. Defaults to false.
+- `allowInternalExpectRevert`: Allow expecting reverts with `expectRevert` at the same callstack depth as the test. Defaults to false.
+- `from`: The value of `msg.sender` in tests as hex string. Defaults to `0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38`.
+- `txOrigin`: The value of `tx.origin` in tests as hex string. Defaults to `0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38`.
+- `initialBalance`: The initial balance of the sender in tests. Defaults to `0xffffffffffffffffffffffff`.
+- `blockGasLimit`: The gas limit for each test case. Defaults to `9_223_372_036_854_775_807` (`i64::MAX`).
+- `blockBaseFeePerGas`: The base fee per gas (in wei) in tests. Defaults to `0`.
+- `coinbase`: The value of `block.coinbase` in tests. Defaults to `0x0000000000000000000000000000000000000000`.
+- `blockTimestamp`: The value of `block.timestamp` in tests. Defaults to 1.
+- `blockGasLimit`: The `block.gaslimit` value during EVM execution. Set it to false to disable the block gas limit. Defaults to none.
+- `forking`: Optional fork configuration options object. Defaults to none.
+  - `url`: If set, all tests are run in fork mode using this url or remote name. Defaults to none.
+  - `blockNumber`: Optional block number to pin the global state fork. If `url` is set, defaults to the latest block number.
+  - `rpcEndpoints`: Map of RPC endpoints from chain name to RPC urls for fork cheat codes, e.g. `{ "optimism": "https://optimism.alchemyapi.io/v2/..." }`
+- `fuzz`: Optional fuzz testing configuration object.
+  - `failurePersistDir`: Optional path where fuzz failures are recorded and replayed if set.
+  - `failurePersistFile`: Name of the file to record fuzz failures, defaults to `failures`.
+  - `runs`: The amount of fuzz runs to perform for each fuzz test case. Higher values give more confidence in results at the cost of testing speed. Defaults to 256.
+  - `maxTestRejects`: The maximum number of combined inputs that may be rejected before the test as a whole aborts. "Global" filters apply to the whole test case. If the test case is rejected, the whole thing is regenerated. Defaults to 65536.
+  - `seed`: Hexadecimal string. Optional seed for the fuzzing RNG algorithm. Defaults to None.
+  - `dictionaryWeight`: Integer between 0 and 100. The weight of the dictionary. A higher dictionary weight will bias the fuzz inputs towards "interesting" values, e.g. boundary values like type(uint256).max or contract addresses from your environment. Defaults to 40.
+  - `includeStorage`: The flag indicating whether to include values from storage. Defaults to true.
+  - `includePushBytes`: The flag indicating whether to include push bytes values. Defaults to true.
+- `invariant`: Optional invariant testing configuration object. If an invariant config setting is not set, but a corresponding fuzz config value is set, then the fuzz config value will be used.
+  - `failurePersistDir`: Optional path where invariant failures are recorded and replayed if set.
+  - `runs`: The number of runs that must execute for each invariant test group. Defaults to 256.
+  - `depth`: The number of calls executed to attempt to break invariants in one run. Defaults to 500.
+  - `failOnRevert`: Fails the invariant fuzzing if a revert occurs. Defaults to false.
+  - `callOverride`: Overrides unsafe external calls when running invariant tests, useful for e.g. performing reentrancy checks. Defaults to false.
+  - `dictionaryWeight`: Integer between 0 and 100. The weight of the dictionary. A higher dictionary weight will bias the fuzz inputs towards "interesting" values, e.g. boundary values like type(uint256).max or contract addresses from your environment. Defaults to 40.
+  - `includeStorage`: The flag indicating whether to include values from storage. Defaults to true.
+  - `includePushBytes`: The flag indicating whether to include push bytes values. Defaults to true.
+  - `shrinkRunLimit`: The maximum number of attempts to shrink a failed sequence. The shrink process is disabled if set to 0. Defaults to 5000.
+
+## Toolbox options
+
+Hardhat provides two official toolboxes, each with a set of plugins meant to simplify setup: [`hardhat-toolbox-viem`](/docs/plugins/hardhat-toolbox-viem) and [`hardhat-toolbox-mocha-ethers`](/docs/plugins/hardhat-toolbox-mocha-ethers).
+
+Both toolboxes include the `hardhat-ignition` and `hardhat-verify` plugins, and their configuration is documented elsewhere:
+
+- `hardhat-ignition`: see the [Hardhat Ignition documentation](/ignition/docs/reference/config).
+- `hardhat-verify`: see the [verification guide](/docs/guides/smart-contract-verification).
+
+## Viem Toolbox options
+
+The Viem toolbox makes the [Node.js test runner](https://nodejs.org/api/test.html) available for use in your Hardhat project. You can tell Hardhat where your tests are located by setting the `paths.tests.nodejs` field in your config:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  paths: {
+    tests: {
+      nodejs: "./paths/to/your/tests",
+    },
+  },
+});
+```
+
+## Ethers Toolbox options
+
+The Ethers toolbox makes the [Mocha test runner](https://mochajs.org/) available for use in your Hardhat project. You can tell Hardhat where your tests are located by setting the `paths.tests.mocha` field in your config:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  paths: {
+    tests: {
+      mocha: "./paths/to/your/tests",
+    },
+  },
+});
+```
+
+Additionally, you can configure Mocha itself by providing an object to the `test.mocha` field, like this:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  test: {
+    mocha: {
+      timeout: 20_000, // Set the timeout for tests to 20 seconds
+    },
+  },
+});
+```
+
+:::tip
+
+All options available in Mocha can be used here. You can find more information in the [Mocha documentation](https://mochajs.org/).
+
+:::
+
+### Typechain configuration
+
+The Ethers toolbox comes with Typechain support out of the box. You can configure it by providing an object to the `typechain` field in your config, like this:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  typechain: {
+    /**
+     * The absolute path to the folder where the generated types will be stored.
+     * By default, this is set to the "types" folder in the root of your Hardhat project.
+     */
+    outDir: "./types",
+
+    /**
+     * Determines whether overloads with full signatures (e.g., deposit(uint256))
+     * should always be generated, even if there are no overloads.
+     * Defaults to false.
+     */
+    alwaysGenerateOverloads: false,
+
+    /**
+     * Indicates whether TypeChain should be skipped during compilation.
+     * If true, TypeChain will not be executed during the compilation process.
+     * Defaults to false.
+     */
+    dontOverrideCompile: false,
+
+    /**
+     * Generates basic union types for overloaded functions without adding extra
+     * properties to help TypeScript identify specific cases.
+     * Defaults to false.
+     */
+    discriminateTypes: false,
+
+    /**
+     * Skips type-checking in the generated files.
+     * Defaults to false.
+     */
+    tsNocheck: false,
+  },
+});
+```
+
+###
+
+---
+title: Node.js support
+description: Hardhat 3 Node.js support policy
+sidebar:
+  order: 3
+---
+
+Hardhat 3 launches with the support of [Node.js](https://nodejs.org/) `node --version` ≥ `v22.10.0` and `node --version` ≥ `v24.0.0`.
+
+After launch, Hardhat 3 will support all subsequent even major versions of Node.js, while they are labeled as `Current`, `Active LTS` and `Maintenance`. This support activates with the launch of Node.js `v26` and will continue thereafter.
+
+
+###
+
+---
+title: Configuration
+description: Hardhat 3 configuration reference
+sidebar:
+  order: 1
+---
+
+:::tip
+
+Hardhat 3 is production-ready and you can migrate today! We'll keep it in beta status as we work on missing features and stabilize it in the near future.
+
+:::
+
+When Hardhat is run, it searches for the closest `hardhat.config.ts` file starting from the Current Working Directory. This file normally lives in the root of your project. An empty `hardhat.config.ts` is enough for Hardhat to work.
+
+The entirety of your Hardhat setup (i.e. your config, plugins and custom tasks) is contained in this file.
+
+## Available config options
+
+To set up your config, you have to export an object from `hardhat.config.ts`.
+
+The config options available will depend on the Hardhat plugins you have installed. However, there are some [standard options](#standard-options) that come from built-in Hardhat plugins and are always available. Additionally, regardless of which of our `hardhat-toolbox` plugins you have installed, there are some [toolbox options](#toolbox-options) that are common to both of them, while other options are specifically available in either the [Viem](#viem-toolbox-options) or [Ethers](#ethers-toolbox-options) toolbox plugins.
+
+## Standard options
+
+The following options are available even if you don't include any plugins:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  paths: {
+    sources: "./contracts",
+    tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts",
+  },
+  solidity: {
+    version: "{RECOMMENDED_SOLC_VERSION}",
+    settings: {
+      /* solc settings */
+    },
+  },
+  networks: {
+    hardhatMainnet: {
+      type: "edr-simulated",
+      chainType: "l1",
+    },
+    hardhatOp: {
+      type: "edr-simulated",
+      chainType: "op",
+    },
+    sepolia: {
+      type: "http",
+      chainType: "l1",
+      url: configVariable("SEPOLIA_RPC_URL"),
+      accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+    },
+  },
+  test: {
+    solidity: {
+      timeout: 40000,
+      // other solidity tests options
+    },
+  },
+});
+```
+
+:::tip
+
+You can find more info about using Hardhat configuration variables in the [configuration variable guide](/docs/guides/configuration-variables).
+
+:::
+
+### Path configuration
+
+You can customize the different paths that Hardhat uses by providing an object to the `paths` field with the following keys:
+
+- `sources`: The directory where your contracts are stored. This path is resolved relative to your Hardhat config file. Default value: `'./contracts'`.
+- `tests`: The directory where your tests are located, or an object containing fields for each installed test runner that points to their respective test locations. This path is resolved relative to your Hardhat config file. Default value: `'./test'`.
+- `cache`: The directory used by Hardhat to cache its internal stuff. This path is resolved relative to your Hardhat config file. Default value: `'./cache'`.
+- `artifacts`: The directory where the compilation artifacts are stored. This path is resolved relative to your Hardhat config file. Default value: `'./artifacts'`.
+
+### Solidity configuration
+
+The `solidity` config is an optional field that can be one of the following:
+
+- A solc version to use, e.g. `"{RECOMMENDED_SOLC_VERSION}"`.
+- An array of solc versions to use, e.g. `["0.7.6", "{RECOMMENDED_SOLC_VERSION}"]`.
+- An object which describes the configuration for a single compiler. It contains the following keys:
+  - `version`: The solc version to use.
+  - `settings`: An object with the same schema as the `settings` entry in the [Input JSON](https://docs.soliditylang.org/en/latest/using-the-compiler.html#input-description).
+  - `preferWasm`: If true, forces Hardhat to use the WebAssembly (wasm) build of solc instead of a native binary. This can improve build reproducibility across platforms, at the cost of slower compilation times.
+  - `npmFilesToBuild`: A list of source names for which Hardhat should generate artifacts in addition to your project's own sources.
+  - `path`: An optional path to a local Solidity compiler. If provided, this will be used instead of downloading a solc version.
+- An object which describes multiple compilers and their respective configurations. It contains the following:
+  - `compilers`: A list of compiler configuration objects like the one above.
+  - `overrides`: An optional map of compiler configuration override objects. This maps file names to compiler configuration objects.
+  - `preferWasm`: See above.
+  - `npmFilesToBuild`: See above.
+- An object which describes multiple build profiles and their respective configurations. It contains the following:
+  - `profiles`: A map of build profile names to compiler configuration objects like the one above.
+  - `npmFilesToBuild`: See above.
+
+#### Default EVM Version
+
+The default EVM version changes based on the compiler version. To specify a different EVM version, modify your `hardhat.config.ts`:
+
+```js
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  solidity: {
+    version: "0.8.21",
+    settings: {
+      evmVersion: "shanghai",
+    },
+  },
+});
+```
+
+### Network configuration
+
+The `networks` config field is an optional object where network names map to their configuration.
+
+There are two kinds of networks in Hardhat: in-memory simulated networks and [JSON-RPC](https://eth.wiki/json-rpc/API) based networks. You can use either of these by setting the `type` field in the network configuration to either `edr-simulated` or `http`, respectively.
+
+Additionally, simulated networks can be used to test your contracts in different environments, such as Optimism or layer 1 Ethereum, by setting the `chainType` field to either `op` or `l1`, respectively.
+
+There are a number of options that both network types share, as well as some that are specific to each type.
+
+#### Shared network options
+
+The following options are available for both simulated and JSON-RPC networks:
+
+- `type`: The type of the network. This can be either `edr-simulated` for simulated networks or `http` for JSON-RPC networks.
+- `chainId`: An optional number, used to validate the network Hardhat connects to. If not present, this validation is omitted.
+- `chainType`: Determines the type of chain for this network. This can be either `l1` for layer 1 networks like Ethereum, `op` for layer 2 networks like Optimism, or `generic` for other types of networks. Default value: `generic`.
+- `from`: The address to use as default sender. If not present the first account of the node is used.
+- `gas`: Its value should be `"auto"` or a number or bigint. If a number or bigint is used, it will be the gas limit used by default in every transaction. If `"auto"` is used, the gas limit will be automatically estimated. Default value: `"auto"`.
+- `gasMultiplier`: A number used to multiply the results of gas estimation to give it some slack due to the uncertainty of the estimation process. Default value: `1`.
+- `gasPrice`: Its value should be `"auto"` or a number or bigint. This parameter behaves like `gas`. Default value: `"auto"`.
+
+#### Simulated network options
+
+The following options are specific to simulated networks:
+
+- `accounts`: This field controls which accounts Hardhat uses. It can use a list of local accounts (by setting it to an array of `{privateKey, balance}` objects) or an [HD Wallet](#hd-wallet-config). Default value: an HD Wallet with 20 unlocked accounts and a balance of 10,000 ETH each.
+- `allowBlocksWithSameTimestamp`: A boolean to allow mining blocks that have the same timestamp. This is not allowed by default because Ethereum's consensus rules specify that each block should have a different timestamp. Default value: `false`.
+- `allowUnlimitedContractSize`: An optional boolean that disables the contract size limit imposed by [EIP-170](https://eips.ethereum.org/EIPS/eip-170). Default value: `false`.
+- `blockGasLimit`: The block gas limit to use in Hardhat Network's blockchain. Default value: `30_000_000`.
+- `coinbase`: The address used as coinbase in new blocks. Default value: `"0xc014ba5ec014ba5ec014ba5ec014ba5ec014ba5e"`.
+- `forking`: An object that describes the forking configuration and can have the following fields:
+  - `url`: a URL that points to a JSON-RPC node with state that you want to fork off. There's no default value for this field. It must be provided for the fork to work.
+  - `blockNumber`: an optional number to pin which block to fork from. If no value is provided, the latest block is used.
+  - `enabled`: an optional boolean to switch on or off the fork functionality. Default value: `true` if `url` is set, `false` otherwise.
+- `hardfork`: This setting changes how Hardhat Network works, to mimic Ethereum's mainnet at a given hardfork. It must be one of `"byzantium"`, `"constantinople"`, `"petersburg"`, `"istanbul"`, `"muirGlacier"`, `"berlin"`, `"london"`, `"arrowGlacier"`, `"grayGlacier"`, `"merge"`, `"shanghai"`, `"cancun"` and `"prague"`. Default value: `"prague"`.
+- `initialBaseFeePerGas`: The `baseFeePerGas` of the first block. Note that when forking a remote network, the "first block" is the one immediately after the block you forked from. This field must not be present if `hardfork` is not `"london"` or a later one. Default value: `"1000000000"` if not forking. When forking a remote network, if the remote network uses EIP-1559, the first local block will use the right baseFeePerGas according to the EIP, otherwise `"10000000000"` is used.
+- `initialDate`: An optional string setting the date of the blockchain. Valid values are [Javascript's date time strings](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/parse#Date_Time_String_Format). Default value: the current date and time if not forking another network. When forking another network, the timestamp of the block you forked from, plus one second, is used.
+- `loggingEnabled`: A boolean that controls if a simulated network logs every request or not. Default value: `false` for in-process simulated networks, `true` for the simulated network used by the `node` task.
+- `minGasPrice`: The minimum `gasPrice` that a transaction must have. This field must not be present if the `hardfork` is `"london"` or a later one. Default value: `"0"`.
+- `mining`: An object that configures the mining behavior and can have the following fields:
+  - `auto`: a boolean used to enable automine. Default value: `true`.
+  - `interval`: a number or an array with two numbers to enable interval mining. If the value is a number, blocks will be automatically mined every `interval` milliseconds. If the value is an array, blocks will be mined at random intervals between the two numbers.
+  - `mempool`: an object with an `order` field that can be set to `"fifo"` or `"priority"`. When set to `"fifo"`, transactions in the mempool are mined in FIFO order. When set to `"priority"`, they will be mined based on the fees paid to the miner. Default value: `"priority"`.
+- `throwOnCallFailures`: A boolean that controls if simulated networks throw on call failures. If this value is `true`, Hardhat will throw combined JavaScript and Solidity stack traces when a call fails. If it is `false`, it will return the call's return data, which can contain a revert reason. Default value: `true`.
+- `throwOnTransactionFailures`: A boolean that controls if simulated networks throw on transaction failures. If this value is `true`, Hardhat will throw combined JavaScript and Solidity stack traces on transaction failures. If it is `false`, it will return the failing transaction hash. In both cases the transactions are added into the blockchain. Default value: `true`.
+
+#### JSON-RPC network options
+
+The following options are specific to JSON-RPC networks:
+
+- `accounts`: This field controls which accounts Hardhat uses. It can use the node's accounts (by setting it to `"remote"`), a list of local accounts (by setting it to an array of [configuration variables](/docs/guides/configuration-variables)), or use an [HD Wallet](#hd-wallet-config). Default value: `"remote"`.
+- `url`: The URL of the node, passed in via [configuration variable](/docs/guides/configuration-variables). This argument is required for HTTP networks.
+- `httpHeaders`: An optional object with headers to be sent in every request to the node. This can be useful for authentication or other purposes.
+- `timeout`: An optional number that specifies the timeout for requests to the node, in milliseconds.
+
+#### HD Wallet config
+
+To use an [HD Wallet](https://github.com/ethereumbook/ethereumbook/blob/develop/05wallets.asciidoc#hd_wallets) with Hardhat you should set your network's `accounts` field to an object with the following fields:
+
+- `mnemonic`: A required string with the mnemonic phrase of the wallet. Passed in via [configuration variable](/docs/guides/configuration-variables).
+- `path`: The HD parent of all the derived keys. Default value: `"m/44'/60'/0'/0"`.
+- `initialIndex`: The initial index to derive. Default value: `0`.
+- `count`: The number of accounts to derive. Default value: `20`.
+- `passphrase`: The passphrase for the wallet, passed in via [configuration variable](/docs/guides/configuration-variables). Default value: empty string.
+- `accountsBalance`: **Only available in simulated networks.** The balance of the accounts derived from the HD wallet.
+
+For example:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  networks: {
+    sepolia: {
+      type: "http",
+      chainType: "l1",
+      url: configVariable("SEPOLIA_RPC_URL"),
+      accounts: {
+        mnemonic: configVariable("ACCOUNTS_MNEMONIC"),
+        path: "m/44'/60'/0'/0",
+        initialIndex: 0,
+        count: 20,
+        passphrase: configVariable("ACCOUNTS_PASSPHRASE"),
+        // only available when network type === "edr-simulated"
+        accountsBalance: 10n ** 18n, // 1 ETH in wei
+      },
+    },
+  },
+});
+```
+
+### Solidity tests configuration
+
+By default, Hardhat includes support for tests written in Solidity to test your contracts. You can use the `test.solidity` entry to configure how they behave. For example, the following config enables `isolate` mode:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  test: {
+    solidity: {
+      isolate: true,
+    },
+  },
+});
+```
+
+The following options are available for configuring Solidity tests:
+
+:::warning
+
+Giving write access to configuration files, source files or executables in a project is considered dangerous, because it can be used by malicious Solidity dependencies to escape the EVM sandbox.
+It is therefore recommended to give write access to specific safe files only.
+If write access to a directory is needed, please make sure that it doesn't contain configuration files, source files or executables neither in the top level directory, nor in any subdirectories.
+
+:::
+
+- `fsPermissions`: An optional object to configure file system permissions for cheatcodes. Defaults to no permissions. Exact path matching is used for file permissions. Prefix matching is used for directory permissions.
+  - `readFile`: An array of file paths that can be read.
+  - `writeFile`: An array of file paths that can be written.
+  - `readWriteFile`: An array of file paths that can be both read and written.
+  - `readDirectory`: An array of directory paths. All files and directories inside these directories can be read.
+  - `dangerouslyWriteDirectory`: An array of directory paths. All files and directories inside these directories can be written. See warning above to understand why it's dangerous.
+  - `dangerouslyReadWriteDirectory`: An array of directory paths. All files and directories inside these directories can be both read and written. See warning above to understand why it's dangerous.
+- `isolate`: Whether to enable isolation of calls. In isolation mode all top-level calls are executed as a separate transaction in a separate EVM context, enabling more precise gas accounting and transaction state changes. Defaults to false.
+- `ffi`: Whether or not to enable the ffi cheatcode. **Warning**: Enabling this cheatcode has security implications, as it allows tests to execute arbitrary programs on your computer. Defaults to false.
+- `allowInternalExpectRevert`: Allow expecting reverts with `expectRevert` at the same callstack depth as the test. Defaults to false.
+- `from`: The value of `msg.sender` in tests as hex string. Defaults to `0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38`.
+- `txOrigin`: The value of `tx.origin` in tests as hex string. Defaults to `0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38`.
+- `initialBalance`: The initial balance of the sender in tests. Defaults to `0xffffffffffffffffffffffff`.
+- `blockGasLimit`: The gas limit for each test case. Defaults to `9_223_372_036_854_775_807` (`i64::MAX`).
+- `blockBaseFeePerGas`: The base fee per gas (in wei) in tests. Defaults to `0`.
+- `coinbase`: The value of `block.coinbase` in tests. Defaults to `0x0000000000000000000000000000000000000000`.
+- `blockTimestamp`: The value of `block.timestamp` in tests. Defaults to 1.
+- `blockGasLimit`: The `block.gaslimit` value during EVM execution. Set it to false to disable the block gas limit. Defaults to none.
+- `forking`: Optional fork configuration options object. Defaults to none.
+  - `url`: If set, all tests are run in fork mode using this url or remote name. Defaults to none.
+  - `blockNumber`: Optional block number to pin the global state fork. If `url` is set, defaults to the latest block number.
+  - `rpcEndpoints`: Map of RPC endpoints from chain name to RPC urls for fork cheat codes, e.g. `{ "optimism": "https://optimism.alchemyapi.io/v2/..." }`
+- `fuzz`: Optional fuzz testing configuration object.
+  - `failurePersistDir`: Optional path where fuzz failures are recorded and replayed if set.
+  - `failurePersistFile`: Name of the file to record fuzz failures, defaults to `failures`.
+  - `runs`: The amount of fuzz runs to perform for each fuzz test case. Higher values give more confidence in results at the cost of testing speed. Defaults to 256.
+  - `maxTestRejects`: The maximum number of combined inputs that may be rejected before the test as a whole aborts. "Global" filters apply to the whole test case. If the test case is rejected, the whole thing is regenerated. Defaults to 65536.
+  - `seed`: Hexadecimal string. Optional seed for the fuzzing RNG algorithm. Defaults to None.
+  - `dictionaryWeight`: Integer between 0 and 100. The weight of the dictionary. A higher dictionary weight will bias the fuzz inputs towards "interesting" values, e.g. boundary values like type(uint256).max or contract addresses from your environment. Defaults to 40.
+  - `includeStorage`: The flag indicating whether to include values from storage. Defaults to true.
+  - `includePushBytes`: The flag indicating whether to include push bytes values. Defaults to true.
+- `invariant`: Optional invariant testing configuration object. If an invariant config setting is not set, but a corresponding fuzz config value is set, then the fuzz config value will be used.
+  - `failurePersistDir`: Optional path where invariant failures are recorded and replayed if set.
+  - `runs`: The number of runs that must execute for each invariant test group. Defaults to 256.
+  - `depth`: The number of calls executed to attempt to break invariants in one run. Defaults to 500.
+  - `failOnRevert`: Fails the invariant fuzzing if a revert occurs. Defaults to false.
+  - `callOverride`: Overrides unsafe external calls when running invariant tests, useful for e.g. performing reentrancy checks. Defaults to false.
+  - `dictionaryWeight`: Integer between 0 and 100. The weight of the dictionary. A higher dictionary weight will bias the fuzz inputs towards "interesting" values, e.g. boundary values like type(uint256).max or contract addresses from your environment. Defaults to 40.
+  - `includeStorage`: The flag indicating whether to include values from storage. Defaults to true.
+  - `includePushBytes`: The flag indicating whether to include push bytes values. Defaults to true.
+  - `shrinkRunLimit`: The maximum number of attempts to shrink a failed sequence. The shrink process is disabled if set to 0. Defaults to 5000.
+
+## Toolbox options
+
+Hardhat provides two official toolboxes, each with a set of plugins meant to simplify setup: [`hardhat-toolbox-viem`](/docs/plugins/hardhat-toolbox-viem) and [`hardhat-toolbox-mocha-ethers`](/docs/plugins/hardhat-toolbox-mocha-ethers).
+
+Both toolboxes include the `hardhat-ignition` and `hardhat-verify` plugins, and their configuration is documented elsewhere:
+
+- `hardhat-ignition`: see the [Hardhat Ignition documentation](/ignition/docs/reference/config).
+- `hardhat-verify`: see the [verification guide](/docs/guides/smart-contract-verification).
+
+## Viem Toolbox options
+
+The Viem toolbox makes the [Node.js test runner](https://nodejs.org/api/test.html) available for use in your Hardhat project. You can tell Hardhat where your tests are located by setting the `paths.tests.nodejs` field in your config:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  paths: {
+    tests: {
+      nodejs: "./paths/to/your/tests",
+    },
+  },
+});
+```
+
+## Ethers Toolbox options
+
+The Ethers toolbox makes the [Mocha test runner](https://mochajs.org/) available for use in your Hardhat project. You can tell Hardhat where your tests are located by setting the `paths.tests.mocha` field in your config:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  paths: {
+    tests: {
+      mocha: "./paths/to/your/tests",
+    },
+  },
+});
+```
+
+Additionally, you can configure Mocha itself by providing an object to the `test.mocha` field, like this:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  test: {
+    mocha: {
+      timeout: 20_000, // Set the timeout for tests to 20 seconds
+    },
+  },
+});
+```
+
+:::tip
+
+All options available in Mocha can be used here. You can find more information in the [Mocha documentation](https://mochajs.org/).
+
+:::
+
+### Typechain configuration
+
+The Ethers toolbox comes with Typechain support out of the box. You can configure it by providing an object to the `typechain` field in your config, like this:
+
+```ts
+// hardhat.config.ts
+import { defineConfig } from "hardhat/config";
+
+export default defineConfig({
+  typechain: {
+    /**
+     * The absolute path to the folder where the generated types will be stored.
+     * By default, this is set to the "types" folder in the root of your Hardhat project.
+     */
+    outDir: "./types",
+
+    /**
+     * Determines whether overloads with full signatures (e.g., deposit(uint256))
+     * should always be generated, even if there are no overloads.
+     * Defaults to false.
+     */
+    alwaysGenerateOverloads: false,
+
+    /**
+     * Indicates whether TypeChain should be skipped during compilation.
+     * If true, TypeChain will not be executed during the compilation process.
+     * Defaults to false.
+     */
+    dontOverrideCompile: false,
+
+    /**
+     * Generates basic union types for overloaded functions without adding extra
+     * properties to help TypeScript identify specific cases.
+     * Defaults to false.
+     */
+    discriminateTypes: false,
+
+    /**
+     * Skips type-checking in the generated files.
+     * Defaults to false.
+     */
+    tsNocheck: false,
+  },
+});
+```
+
+######
+
+Hardhat 3 errors
+This section contains a list of all the possible errors you may encounter when using Hardhat and an explanation of each of them.
+
+Hardhat 3 errors
+General errors
+HHE1: You are not inside a Hardhat project
+You are trying to run Hardhat outside of a Hardhat project.
+
+You can learn how to use Hardhat by reading the Getting Started guide.
+
+HHE2: Duplicated plugin id
+While loading the plugins, two different plugins where found with the same id.
+
+Please double check whether you have multiple versions of the same plugin installed.
+
+HHE3: No Hardhat config file found
+Hardhat couldn’t find a config file in the current directory or any of its parents.
+
+HHE4: Invalid config path
+The config file doesn’t exist at the provided path.
+
+HHE5: No config exported
+There is nothing exported from the config file.
+
+HHE6: Invalid config object
+The config file doesn’t export a valid configuration object.
+
+HHE7: Configuration variable not found
+A configuration variable was expected to be set as an environment variable, but it wasn’t.
+
+HHE8: Invalid URL
+Given value was not a valid URL.
+
+HHE9: Invalid BigInt
+Given value was not a valid BigInt.
+
+HHE10: Hardhat project already created
+Cannot create a new Hardhat project, the current folder is already associated with a project.
+
+HHE11: Not inside an interactive shell
+You are trying to initialize a project but you are not in an interactive shell.
+
+Please re-run the command inside an interactive shell.
+
+HHE12: Unsupported operation
+You are trying to perform an unsupported operation.
+
+Unless you are creating a task or plugin, this is probably a bug.
+
+Please report it to help us improve Hardhat.
+
+HHE13: Only ESM projects are supported
+You are trying to initialize a new Hardhat project, but your package.json does not have the property “type” set to “module”.
+
+Currently, Hardhat only supports ESM projects.
+
+Please add the property “type” with the value “module” in your package.json to ensure that your project is recognized as an ESM project.
+
+HHE14: Global option already defined
+The global option is already defined by another plugin. Please ensure that global options are uniquely named to avoid conflicts.
+
+HHE15: Invalid config
+The configuration you provided is invalid. Please check the documentation to learn how to configure Hardhat correctly.
+
+HHE16: Template not found
+The template you provided is not found. Please check the documentation to learn which templates are available.
+
+HHE17: Workspace must be a directory
+The workspace you provided is not a directory. Please ensure that the workspace is a directory and try again.
+
+HHE18: Invalid hex string
+Given value was not a valid hex string.
+
+HHE19: Config variable format must include {variable}
+The config variable format must include the string “{variable}”, which will be replaced with the actual value of the variable.
+
+HHE20: Invalid fully qualified contract name
+A contract name was expected to be in fully qualified form, but it’s not.
+
+A fully qualified name should look like file.sol:Contract
+
+HHE21: Invalid Hardhat config file
+The config file has JS/TS errors.
+
+Please resolve the errors before rerunning the command.
+
+HHE22: Hardhat is not installed or installed globally
+You tried to run Hardhat from a global installation or not installing it at all. This is not supported.
+
+Please install Hardhat locally using pnpm, npm or yarn, and try again.
+
+Internal errors
+HHE100: Invariant violation
+An internal invariant was violated. This is probably caused by a programming error in Hardhat or in one of the used plugins.
+
+Please report it to help us improve Hardhat.
+
+HHE101: Not implemented
+A code path that has not been implemented was unexpectedly triggered.
+
+Please report it to help us improve Hardhat.
+
+Plugin errors
+HHE200: Plugin not installed
+A plugin was included in the Hardhat config but has not been installed into “node_modules”.
+
+HHE201: Plugin missing peer dependency
+A plugin’s peer dependency has not been installed.
+
+HHE202: Dependency version mismatch
+A plugin’s peer dependency expected version does not match the version of the installed package.
+
+Please install a version of the peer dependency that meets the plugin’s requirements.
+
+HHE203: Plugin dependency could not be loaded
+The loading of a plugin’s dependent plugin failed.
+
+Hooks errors
+HHE300: Plugin hook factory is not a valid file URL
+The loading of a plugin’s hook factory failed as the import path is not a valid file:// URL.
+
+HHE301: Unexpected hook parameter modification
+The parameter is not allowed to be modified
+
+Task definition errors
+HHE400: Invalid file action
+The setAction function was called with a string parameter that is not a valid file URL. A valid file URL must start with ‘file://’.
+
+Please ensure that you are providing a correct file URL.
+
+HHE401: Task missing action
+A task was defined without an action.
+
+Please ensure that an action is defined for each task.
+
+HHE402: Invalid task definition
+A variadic argument must always be the last positional argument in a task definition.
+
+HHE403: Invalid task definition
+Required positional arguments must be defined before optional ones in a task definition.
+
+HHE404: Task not found
+The provided task name does not match any task.
+
+HHE405: Subtask without parent
+The parent task of the subtask being defined was not found. If you intend to only define subtasks, please first define the parent task as an empty task.
+
+HHE406: Task already defined
+The task is already defined. Please ensure that tasks are uniquely named to avoid conflicts.
+
+HHE407: Empty task id
+The task id cannot be an empty string or an empty array. Please ensure that the array of task names is not empty.
+
+HHE408: Task option already defined
+The task option is already defined as a global option by another plugin. Please ensure that task options are uniquely named to avoid conflicts.
+
+HHE409: Task override option already defined
+An attempt is being made to override an option that has already been defined. Please ensure that the option is not defined before trying to override it.
+
+HHE410: Empty task
+The task is empty. Please ensure that tasks have at least one action.
+
+HHE411: Unable to import action for task
+Unable to import action for task. Please verify that the the file exists and that it provides a default function export.
+
+HHE412: Invalid action
+The action of the task is not a function. Make sure that the file pointed to by the action URL exports a function as the default export.
+
+HHE413: Missing value for the task argument
+You tried to run a task, but one of the values of its arguments was missing.
+
+Please double check how you invoked Hardhat or ran your task.
+
+HHE414: Invalid argument type
+One of your task arguments has an invalid type.
+
+Please double check your task arguments.
+
+HHE415: Invalid option value
+One of the options for your task is invalid.
+
+Please double check your arguments.
+
+HHE416: Unrecognized subtask
+The subtask for the task you provided is not recognized.
+
+Please check you have the correct subtask.
+
+Arguments related errors
+HHE500: Invalid argument type
+One of your Hardhat or task arguments has an invalid type.
+
+Please double check your arguments.
+
+HHE501: Reserved argument name
+One of your Hardhat or task arguments has a reserved name.
+
+Please double check your arguments.
+
+HHE502: Argument name already in use
+One of your Hardhat or task argument names is already in use.
+
+Please double check your arguments.
+
+HHE503: Invalid argument name
+One of your Hardhat or task argument names is invalid.
+
+Please double check your arguments.
+
+HHE504: Invalid option value
+One of your Hardhat options is invalid.
+
+Please double check your arguments.
+
+HHE505: Missing value for the task argument
+You tried to run a task, but one of the values of its arguments was missing.
+
+Please double check how you invoked Hardhat or ran your task.
+
+HHE506: Argument was not consumed
+You tried to run a task, but one of your arguments was not consumed.
+
+Please double check how you invoked Hardhat or ran your task.
+
+HHE507: Missing configuration file path
+A path to the configuration file is expected after the global option “—config”, but none was provided.
+
+Please double check your arguments.
+
+HHE508: The global option “—config” cannot be used with the “init” command
+The global option “—config” cannot be used with the “init” command.
+
+Please double check your arguments.
+
+HHE509: Options grouping is not supported
+Options cannot be grouped together.
+
+Please double check your arguments, and try providing the options separately.
+
+HHE510: Options repetition is not supported
+Some options cannot be repeated.
+
+Please double check your arguments.
+
+HHE511: Invalid short argument name
+One of your Hardhat or task short argument names is invalid.
+
+Please double check your arguments.
+
+Built-in tasks errors
+HHE600: Script doesn’t exist
+Tried to use hardhat run to execute a nonexistent script.
+
+Please double check your script’s path.
+
+Network errors
+HHE700: Invalid URL for network or forking
+You are trying to connect to a network with an invalid network or forking URL.
+
+Please check that you are sending a valid URL string for the network or forking URL parameter.
+
+HHE701: Invalid method parameters
+The JSON-RPC request parameters are invalid. You are trying to make an EIP-1193 request with object parameters, but only array parameters are supported. Ensure that the ‘params’ parameter is correctly specified as an array in your JSON-RPC request.
+
+HHE702: Invalid JSON-RPC response
+One of your JSON-RPC requests received an invalid response.
+
+Please make sure your node is running, and check your internet connection and networks config.
+
+HHE703: Cannot connect to the network
+Cannot connect to the network.
+
+Please make sure your node is running, and check your internet connection and networks config.
+
+HHE704: Network timeout
+One of your JSON-RPC requests timed out.
+
+Please make sure your node is running, and check your internet connection and networks config.
+
+HHE705: Network not found
+The network you are trying to connect to is not found.
+
+Please double check that the network is correctly defined in your networks config.
+
+HHE706: Invalid chain type
+The chain type does not match the network’s chain type.
+
+If you want to use a different chain type, please update your networks config.
+
+HHE707: Invalid config override
+The configuration override you provided is invalid.
+
+HHE708: Invalid global chain id
+Hardhat was set to use a chain id but connected to a chain with a different id
+
+HHE709: No remote account available
+No local account was set and there are accounts in the remote node
+
+HHE710: Missing “data” param when calling eth_sign
+You called “eth_sign” with incorrect parameters.
+
+Please check that you are sending a “data” parameter.
+
+HHE711: Missing “address” param when calling personal_sign
+You called “personal_sign” with incorrect parameters.
+
+Please check that you are sending an “address” parameter.
+
+HHE712: Invalid “data” param when calling eth_signTypedData_v4
+You called “eth_signTypedData_v4” with incorrect parameters.
+
+Please check that you are sending a “data” parameter with a JSON string or object conforming to EIP712 TypedData schema.
+
+HHE713: Missing transaction parameter
+You are trying to send a transaction with a locally managed account, and some parameters are missing.
+
+Please double check your transactions’ parameters.
+
+HHE714: Missing fee price parameters
+You are trying to send a transaction with a locally managed account, and no fee price parameters were provided. You need to send gasPrice, or maxFeePerGas and maxPriorityFeePerGas.
+
+Please double check your transactions’ parameters.
+
+HHE715: Incompatible fee price parameters
+You are trying to send a transaction with a locally managed account, and its parameters are incompatible. You sent both gasPrice, and maxFeePerGas or maxPriorityFeePerGas.
+
+Please double check your transactions’ parameters.
+
+HHE716: Unrecognized account
+You are trying to send a transaction or sign some data with an account not managed by your Ethereum node nor Hardhat.
+
+Please double check your accounts and the “from” parameter in your RPC calls.
+
+HHE717: Invalid HD path
+An invalid HD/BIP32 derivation path was provided in your config.
+
+Read the documentation to learn how to define HD accounts correctly.
+
+HHE718: Could not derive an HD key
+One of your HD keys could not be derived.
+
+Try using another mnemonic or deriving less keys.
+
+HHE719: Invalid validation parameters
+The validation of parameters against the schemas failed.
+
+HHE720: Invalid network type
+The network manager only supports the network types ‘http’ and ‘edr-simulated’.
+
+HHE721: Transaction to null address cannot have undefined data
+The transaction to the null address cannot have undefined data
+
+HHE722: Provider closed
+The provider your are trying to use has been closed. Please create a new one using hre.network.connect() and try again.
+
+HHE723: Incompatible EIP-7702 parameters
+You are trying to send a transaction with a locally managed account, and its parameters are incompatible. You sent both gasPrice and authorizationList.
+
+Please double check your transactions’ parameters.
+
+Solidity tests errors
+HHE800: Build info not found for contract
+Build info not found for contract while compiling Solidity test contracts.
+
+HHE801: Runner timed out
+Runner timed out while running Solidity tests.
+
+HHE802: Unhandled EDR error in Solidity tests
+Unhandled EDR error while running Solidity tests.
+
+Solidity errors
+HHE900: Project file resolution error
+There was an error while resolving the project file.
+
+Please double-check your configuration. If it keeps happening, please report it.
+
+HHE901: Npm file resolution error
+There was an error while resolving an npm module that you are trying to compile and generate artifacts for.
+
+Please double-check your configuration. If it keeps happening, please report it.
+
+HHE902: Import resolution error
+There was an error while resolving an import.
+
+Please double-check your import
+
+HHE903: Invalid or unreleased solc version
+The Solidity version in your config is invalid or hasn’t been released yet.
+
+If you are certain it has been released, run npx hardhat clean --global and try again.
+
+HHE904: solc download failed
+Couldn’t download solc.
+
+Please check your internet connection and try again.
+
+HHE905: Couldn’t obtain solc version list
+Couldn’t download solc’s version list.
+
+Please check your internet connection and try again.
+
+HHE906: Downloaded solc checksum verification failed
+Hardhat downloaded a version of the Solidity compiler, and its checksum verification failed.
+
+Please check your internet connection and try again.
+
+If this error persists, run npx hardhat clean --global.
+
+HHE907: Failed to run native solc
+Hardhat successfully downloaded a native version of solc but it doesn’t run.
+
+If you are running MacOS, try installing Apple Rosetta.
+
+If this error persists, run “npx hardhat clean —global”.
+
+HHE908: Failed to run solcjs
+Hardhat successfully downloaded a WASM version of solc but it doesn’t run.
+
+If you are running MacOS, try installing Apple Rosetta.
+
+If this error persists, run “npx hardhat clean —global”.
+
+HHE909: Failed to create compilation job
+Hardhat failed to create a compilation job for a file in your project.
+
+This happens when your files require incompatible versions of solc or you haven’t configured a version that works with them
+
+HHE910: Compilation failed
+Your smart contracts failed to compile.
+
+Please check Hardhat’s output for more details.
+
+HHE911: Invalid solcjs compiler
+Hardhat successfully downloaded a WASM version of solc but it is invalid. The compile function is missing.
+
+HHE912: Build profile not defined
+The build profile you are trying to use is not defined in your Hardhat config.
+
+HHE913: Compiler path does not exist
+The compiler path you are trying to use does not exist. Ensure you specified the correct path in the config file and that the file exists.
+
+HHE914: Could not parse a compiler version
+Hardhat failed to parse the full compiler version from the output of the compiler’s ‘version’ command.
+
+Compilation artifacts related errors
+HHE1000: Artifact not found
+Tried to read a nonexistent artifact.
+
+Please double check that your contracts have been compiled and double check your artifact’s name.
+
+HHE1001: Multiple artifacts found
+There are multiple artifacts that match the given contract name, and Hardhat doesn’t know which one to use.
+
+Please use the fully qualified name of the contract to disambiguate it.
+
+Hardhat node errors
+HHE1100: Invalid node network type
+The node only supports the ‘edr-simulated’ network type.
+
+Hardhat test plugin errors
+HHE1200: Cannot determine a test runner for files
+Cannot determine a test runner for the test files. This may be because the files are not correctly included in the test paths defined by the test plugins in the Hardhat configuration. If they are correctly included, this likely indicates an issue with a plugin failing to detect the files.
+
+Hardhat coverage errors
+HHE1300: Source file not instrumented for coverage
+The source file could not be instrumented for coverage.
+
+HHE1301: Import path already defined in compilation sources
+The import path is already defined in the compilation sources
+
+Hardhat Ignition errors
+General errors
+HHE10000: Internal Hardhat Ignition invariant was violated
+An internal Hardhat Ignition invariant was violated.
+
+HHE10001: Unsupported ethers.js value
+Unsupported ethers.js value
+
+HHE10002: Artifact migration needed
+Hardhat Ignition needs to migrate the artifacts to the new format. Please run npx hardhat ignition migrate {deploymentId}
+
+Internal errors
+HHE10100: An internal error to Hardhat Ignition has occurred
+An internal error to Hardhat Ignition has occurred
+
+HHE10101: Invalid variable name
+One of your Hardhat Ignition template variables has an invalid name
+
+HHE10102: Variable tag not found in template
+One of your Hardhat Ignition template variables has a tag that is not present in the template
+
+HHE10103: Template value includes variable tag
+One of your Hardhat Ignition template variables has a value that includes a variable tag
+
+HHE10104: No etherscan API key configured
+You are trying to run verification during a Hardhat Ignition deploy, but there is no Etherscan API Key set.
+
+HHE10105: Cannot reset deployment on ephemeral Hardhat network
+The reset flag can only used against a persistent network. You are trying to reset a deployment against an in-memory network.
+
+HHE10106: No Ignition modules found
+Ignition was unable to find the module requested for deployment.
+
+HHE10107: Could not parse JSON parameters
+Ignition failed to parse the JSON parameters for deployment. Review the JSON and try again.
+
+HHE10108: The deployment-id contains banned characters
+The deployment-id being used for the Hardhat Ignition deployment contains banned characters. Deployment ids can only contain alphanumerics, dashes or underscores.
+
+HHE10109: Neither the viem or ethers Ignition extension plugin is installed.
+Please install either @nomicfoundation/hardhat-ignition-viem or @nomicfoundation/hardhat-ignition-ethers to use Ignition in your Hardhat tests
+
+HHE10110: Hardhat Ignition was unable to display an unknown transaction type
+Hardhat Ignition was unable to display an unknown transaction type
+
+HHE10111: Parameter exceeds maximum safe integer size
+Parameter exceeds maximum safe integer size
+
+HHE10112: Module validation failed.
+Hardhat Ignition found problems while validating the module. Please review the module and try again.
+
+HHE10113: Parsing of deployment parameters failed.
+Parsing of deployment parameters failed.
+
+HHE10114: Visualization template directory not found
+Visualization template directory not found
+
+HHE10115: Ignition module not found
+Hardhat Ignition was not able to find an Ignition Module at the given path.
+
+HHE10116: Ignition module outside of module directory
+Ignition modules must be located within the module directory.
+
+HHE10117: Test error in Hardhat Ignition Viem’s test helper
+Test error in Hardhat Ignition Viem’s test helper.
+
+HHE10118: Hardhat Ignition unable to find artifact path for the contract name
+Hardhat Ignition unable to find artifact path for the contract name
+
+HHE10119: Only one Ignition extension plugin allowed
+Both the ethers and viem Ignition extension plugins were found, but only one can be used at a time.
+
+Please only include one of the plugins in your Hardhat configuration.
+
+HHE10120: Hardhat Ignition deployment error
+Hardhat Ignition was not able to successfully complete a deployment.
+
+Please review the error message and try again.
+
+HHE10121: No default Viem wallet client found
+Hardhat Ignition will use the default wallet client to create Viem contract instances for deployed contracts. No wallet clients were found.
+
+Module errors
+HHE10200: Invalid module id type
+Module id must be a string
+
+HHE10201: Invalid module id
+Module ids can only have alphanumerics and underscore, and they must start with an alphanumeric.
+
+HHE10202: Invalid module definition function
+Module definition function must be a function.
+
+HHE10203: Async module definition function
+Async callbacks are not allowed in ‘buildModule’.
+
+HHE10204: Duplicate module ids
+Please make sure all module ids are unique.
+
+Serialization errors
+HHE10300: Invalid future id
+Unable to lookup future during deserialization
+
+HHE10301: Invalid future type
+Invalid FutureType as serialized argument
+
+HHE10302: Lookahead value not found
+Lookahead value missing
+
+Execution errors
+HHE10400: Dropped transaction
+One of the transactions sent by Hardhat Ignition was dropped
+
+HHE10401: Invalid JSON-RPC response
+Hardhat Ignition received an invalid JSON-RPC response for the given method
+
+HHE10402: Waiting for confirmations
+Waiting for confirmations for transactions sent from the sender
+
+HHE10403: Waiting for nonce
+Waiting for confirmations for transactions sent from the sender
+
+HHE10404: Invalid nonce
+The next nonce for the sender is not what Hardhat Ignition expected
+
+HHE10405: Base fee exceeds gas limit
+The configured base fee exceeds the block gas limit
+
+HHE10406: Max fee per gas exceeds gas limit
+The calculated max fee per gas exceeds the configured limit
+
+HHE10407: Insufficient funds for transfer
+Sender account has insufficient funds for transfer
+
+HHE10408: Insufficient funds for deploy
+Sender account has insufficient funds for deploy
+
+HHE10409: Gas estimation failed
+Gas estimation failed
+
+HHE10410: Transaction lost
+An error occurred while trying to send a transaction
+
+Reconciliation errors
+HHE10500: Invalid execution status
+Unsupported execution status
+
+Wipe errors
+HHE10600: Uninitialized deployment
+Cannot wipe future as the deployment hasn’t been intialialized yet
+
+HHE10601: No state for future
+Cannot wipe future as it has no previous execution recorded
+
+HHE10602: Dependent futures
+Cannot wipe future as there are dependent futures that have previous executions recorded
+
+Validation errors
+HHE10700: Invalid default sender
+The default sender is not part of the configured accounts
+
+HHE10701: Missing emitter
+The emitter must be provided when reading an event from a SendDataFuture
+
+HHE10702: Module validation failed
+Module validation failed
+
+HHE10703: Invalid constructor arguments length
+Invalid constructor arguments length
+
+HHE10704: Invalid function arguments length
+Invalid function arguments length
+
+HHE10705: Invalid static call
+Function is not ‘pure’ or ‘view’ and should not be statically called
+
+HHE10706: Indexed event argument
+Indexed argument of event is not stored in the receipt
+
+HHE10707: Invalid overload name
+Invalid overload name
+
+HHE10708: Overload not found
+Overload not found
+
+HHE10709: Overload name used for non-overloaded contract
+Overload name used for non-overloaded contract
+
+HHE10710: Overload name required
+Overload name required
+
+HHE10711: Invalid overload given
+Invalid overload given
+
+HHE10712: Event argument not found
+Event argument not found
+
+HHE10713: Invalid event argument index
+Invalid event argument index
+
+HHE10714: Function argument not found
+Function argument not found
+
+HHE10715: Invalid function argument index
+Invalid function argument index
+
+HHE10716: Missing libraries
+The following libraries are missing
+
+HHE10717: Conflicting library names
+The library names clash with each other
+
+HHE10718: Invalid library name
+Invalid library name
+
+HHE10719: Invalid library
+Invalid library
+
+HHE10720: Ambiguous library name
+The library name is ambiguous
+
+HHE10721: Invalid library address
+Invalid address for library
+
+HHE10722: Negative account index
+Account index cannot be a negative number
+
+HHE10723: Account index too high
+Requested account index is greater than the total number of available accounts
+
+HHE10724: Invalid artifact
+Artifact for contract is invalid
+
+HHE10725: Missing module parameter
+Module parameter requires a value but was given none
+
+HHE10726: Invalid module parameter type
+Module parameter must be of the expected type
+
+Status errors
+HHE10800: Uninitialized deployment
+Cannot get status for nonexistant deployment
+
+Deploy errors
+HHE10900: Chain ID changed
+The deployment’s chain cannot be changed between runs.
+
+HHE10901: Deployment already in progress
+Another instance of IgnitionHelper.deploy() is already in use. Please wait for the previous deployment to finish.
+
+Verify errors
+HHE11000: Uninitialized deployment
+Cannot verify contracts for nonexistant deployment
+
+HHE11001: No contracts deployed
+Cannot verify deployment as no contracts were deployed
+
+HHE11002: Unsupported chain
+Verification not natively supported for the requested chain
+
+Strategies errors
+HHE11100: Invalid strategy name, must be either ‘basic’ or ‘create2’
+Invalid strategy, must be either ‘basic’ or ‘create2’
+
+HHE11101: Missing strategy config
+No strategy config passed for strategy
+
+HHE11102: Missing strategy config parameter
+Missing required strategy configuration parameter
+
+HHE11103: Invalid strategy config parameter
+Strategy configuration parameter is invalid
+
+HHE11104: CreateX contract not deployed
+The CreateX contract is not deployed on the current network
+
+List transactions errors
+HHE11200: Uninitialized deployment
+Cannot list transactions for nonexistant deployment
+
+Track transactions errors
+HHE11300: Deployment directory not found
+The deployment directory was not found
+
+HHE11301: Uninitialized deployment
+Cannot track transaction for nonexistant deployment
+
+HHE11302: Transaction not found
+The transaction hash you provided was not found on the network.
+
+HHE11303: Matching nonce not found
+The transaction you provided doesn’t seem to belong to your deployment.
+
+HHE11304: Known transaction
+The transaction hash that you provided was already present in your deployment.
+
+HHE11305: Insufficient confirmations
+The transaction you provided doesn’t have enough confirmations yet.
+
+Hardhat Ethers errors
+General errors
+HHE20000: Method not implemented
+Method not implemented
+
+HHE20001: Event not supported
+Event not supported
+
+HHE20002: Account index out of range
+Account index out of range
+
+HHE20003: Broadcasted transaction hash mismatch
+Broadcasted transaction hash mismatch
+
+HHE20004: Cannot get account
+Cannot get account
+
+HHE20005: Invalid block tag
+Invalid block tag
+
+HHE20006: Invalid artifact for contract factory creation
+Invalid artifact for contract factory creation
+
+HHE20007: Invalid abstract contract for contract factory creation
+Invalid abstract contract for contract factory creation
+
+HHE20008: Invalid address to link contract
+Invalid address to link contract
+
+HHE20009: Library is not one of the contract libraries
+Library is not one of the contract libraries
+
+HHE20010: Ambiguous library name
+Ambiguous library name
+
+HHE20011: Reference to same library
+Reference to same library
+
+HHE20012: Missing links for library
+Missing links for library
+
+HHE20013: Unsupported type for deep copy
+Unsupported type for deep copy
+
+HHE20014: Remote accounts are not supported
+Remote accounts are not supported
+
+HHE20015: Invalid “accounts” property in your Hardhat configuration file
+The “accounts” property in your Hardhat configuration file is not set correctly. Please double check it and try again.
+
+HHE20016: Private key for the address could not be found
+The private key for the address could not be found. Please double check your private keys and try again.
+
+Hardhat Mocha errors
+General errors
+HHE30000: Running tests twice in an ESM project
+You have run your tests twice programmatically and your project is an ESM project (you have "type": "module" in your package.json, or some of your files have the .mjs extension). This is not supported by Mocha yet (https://github.com/mochajs/mocha/issues/2706).
+
+Hardhat Viem errors
+General errors
+HHE40000: Network not found
+No network with the specified chain id was found. You can override the chain by passing it as a parameter to the client getter:
+
+import { someChain } from "viem/chains";
+const client = await hre.viem.getPublicClient({
+  chain: someChain,
+  ...
+});
+
+You can find a list of supported networks here: https://github.com/wevm/viem/blob/main/src/chains/index.ts
+
+HHE40001: Unsupported Development Network
+The chain ID corresponds to a development network, but we were unable to identify it as either Hardhat or Anvil.
+
+Please ensure you’re using one of the supported networks.
+
+HHE40002: Default Wallet Client Not Found
+A default wallet client could not be found for the specified chain ID. This issue may occur if no accounts were configured for the selected network.
+
+To resolve this, make sure to add an account to the specified network in the Hardhat config. Alternatively, you can set a custom wallet client by passing it as a parameter in the relevant function:
+
+const networkConnection = await hre.network.connect(...);
+const walletClient = await networkConnection.viem.getWalletClient(address);
+
+await networkConnection.viem.deployContract(contractName, constructorArgs, { walletClient });
+await networkConnection.viem.sendDeploymentTransaction(contractName, constructorArgs, { walletClient });
+await networkConnection.viem.getContractAt(contractName, address, { walletClient });
+
+HHE40003: Error Linking Contract
+An error occurred while linking the contract libraries.
+
+Please check Hardhat’s output for more details.
+
+HHE40004: Invalid Confirmations Value
+Invalid confirmations value. The confirmations value provided is invalid.
+
+HHE40005: Deployment Transaction Error
+The deployment transaction was mined but its receipt doesn’t contain a contract address.
+
+Hardhat Keystore errors
+General errors
+HHE50000: Invalid password or corrupted keystore file
+The password you provided is incorrect or the keystore file is corrupted.
+
+HHE50001: Cannot change password for dev keystore
+The keystore “change-password” task cannot be used with the development keystore
+
+HHE50002: Key not found in the development keystore during tests
+Key not found in the development keystore. During tests, configuration variables can only be accessed through the development keystore.
+
+Run npx hardhat keystore set <KEY> --dev to set it.
+
+Hardhat Network Helpers errors
+General errors
+HHE60000: Only hex-encoded strings prefixed with “0x” are accepted
+Only hex-encoded strings prefixed with “0x” are accepted
+
+HHE60001: Cannot converted into an RPC quantity
+The value cannot be converted into an RPC quantity
+
+HHE60002: Invalid hex string
+The value is not a valid hex string
+
+HHE60003: Invalid transaction hash
+The value is not a valid transaction hash
+
+HHE60004: Invalid address
+The value is not a valid address
+
+HHE60005: Invalid checksum address
+The address has an invalid checksum
+
+HHE60006: Block number smaller than the current block number
+The block number is smaller than the current block number
+
+HHE60007: The evm_snapshot value should be a string
+The value returned by evm_snapshot should be a string
+
+HHE60008: The evm_revert value should be a boolean
+The value returned by evm_revert should be a boolean
+
+HHE60009: Trying to restore an invalid snapshot.
+Trying to restore an invalid snapshot.
+
+HHE60010: Invalid input, expected a non-negative number
+Invalid input, expected a non-negative number
+
+HHE60011: Cannot convert negative number to RPC quantity
+Cannot convert negative number to RPC quantity
+
+HHE60012: Anonymous functions cannot be used as fixtures
+Anonymous functions cannot be used as fixtures
+
+HHE60013: Error while reverting snapshot
+Error while reverting snapshot
+
+HHE60014: Hardhat network helpers can only be used with the Hardhat Network
+Hardhat network helpers can only be used with the Hardhat Network
+
+HHE60015: Hardhat network helpers can only be used with the Hardhat Network - version info
+Hardhat network helpers can only be used with the Hardhat Network
+
+Hardhat Chai Matchers errors
+General errors
+HHE70000: Unknown comparison operation
+Unknown comparison operation
+
+HHE70001: Expected string or addressable
+Expected string or addressable
+
+HHE70002: Assertion doesn’t have an error message
+Assertion doesn’t have an error message. Please open an issue to report this.
+
+HHE70003: Matcher cannot be chained after
+The matcher cannot be chained after another matcher. Please open an issue to report this.
+
+HHE70004: Error while decoding data
+There was an error decoding data
+
+HHE70005: Expected a valid transaction hash
+Expected a valid transaction hash
+
+HHE70006: Expected the revert reason to be a string or a regular expression
+Expected the revert reason to be a string or a regular expression
+
+HHE70007: First argument must be a contract
+First argument must be a contract
+
+HHE70008: Expected the custom error name to be a string
+Expected the custom error name to be a string
+
+HHE70009: Contract doesn’t have a custom error with the specified name
+Contract doesn’t have a custom error with the specified name
+
+HHE70010: Invalid arguments length for the .revertedWithCustomError matcher
+Invalid arguments length for the .revertedWithCustomError matcher
+
+HHE70011: [.withArgs] should never happen, please submit an issue to the Hardhat repository
+[.withArgs] should never happen, please submit an issue to the Hardhat repository
+
+HHE70012: Should not get an indexed event when the assertion type is not event
+Should not get an indexed event when the assertion type is not event
+
+HHE70013: Expected the given panic code to be a number-like value
+Expected the given panic code to be a number-like value
+
+HHE70014: The number of accounts is different than the number of expected balance changes
+The number of accounts is different than the number of expected balance changes
+
+HHE70015: First argument must be a contract instance
+First argument must be a contract instance
+
+HHE70016: Given contract instance is not an ERC20 token
+Given contract instance is not an ERC20 token
+
+HHE70017: Invalid transaction
+Invalid transaction
+
+HHE70018: Contract target must be a string
+Contract target must be a string
+
+HHE70019: Invalid arguments length for the .emit matcher
+Invalid arguments length for the .emit matcher
+
+HHE70020: Contract runner’s provider shouldn’t be null
+Contract runner’s provider shouldn’t be null
+
+HHE70021: Do not combine .not. with .withArgs()
+Do not combine .not. with .withArgs()
+
+HHE70022: withArgs can only be used in combination with a previous .emit or .revertedWithCustomError assertion
+withArgs can only be used in combination with a previous .emit or .revertedWithCustomError assertion
+
+HHE70023: withArgs called with both .emit and .revertedWithCustomError, but these assertions cannot be combined
+withArgs called with both .emit and .revertedWithCustomError, but these assertions cannot be combined
+
+HHE70024: Deprecated reverted matcher
+The .reverted matcher was deprecated and you should use .revert(ethers) instead.
+
+Hardhat Verify errors
+General errors
+HHE80000: Network not supported
+The network is not supported by hardhat-verify. To see the list of supported networks, run:
+
+Terminal window
+npx hardhat verify --list-networks
+
+To add support for a new network, see https://hardhat.org/verify-custom-networks
+
+HHE80001: Explorer request failed
+The request to the explorer failed.
+
+Verify that the URL is correct.
+Ensure the service is up and reachable.
+Check your network connection and try again.
+HHE80002: Explorer request status code error
+The request to the explorer returned a non-success status code.
+
+Verify that the URL is correct.
+Ensure the service is up and reachable.
+Check your network connection and try again.
+HHE80003: Unsupported solidity compiler version
+The specified Solidity compiler version is not supported by the Etherscan API. Only versions 0.4.11 and above are supported. For a full list of supported versions, visit: https://etherscan.io/solcversions
+
+HHE80004: Deployed bytecode not found
+No bytecode was found at the specified address. This usually means the contract is not deployed or was deployed to a different network. Please verify the address and selected network, and try again.
+
+HHE80005: Compiler version mismatch
+The Solidity compiler version used to compile the deployed contract does not match any of the versions configured in your Hardhat project.
+
+This mismatch may indicate:
+
+You’re not on the same commit that was used to deploy the contract.
+The compiler version in your Hardhat config is incorrect.
+The address provided is not the deployed contract.
+The selected network is incorrect.
+HHE80006: Contract not found
+The specified contract is not present in your project’s artifacts. Please ensure the contract is compiled and the name is correct.
+
+HHE80007: Build info not found
+The specified contract is present in your project, but its build info is missing. Please ensure the contract is compiled by Hardhat and that it is written in Solidity.
+
+HHE80008: Build info compiler version mismatch
+The compiler version in the build info does not match the version encoded in the deployed bytecode. Possible causes:
+
+Compiler settings were changed after deployment.
+The contract address is incorrect.
+The selected network is incorrect.
+HHE80009: Deployed bytecode mismatch
+The bytecode at the specified address did not match the expected contract.
+
+Possible causes:
+
+Your artifacts are outdated or missing; try running npx hardhat compile --force --buildProfile production.
+The contract code was modified after deployment.
+Compiler settings (optimizer, EVM version, etc.) changed after deployment.
+The provided address is incorrect.
+The selected network is incorrect.
+HHE80010: Multiple contract matches
+The deployed bytecode matches multiple compiled contracts. Specify the exact contract using the --contract flag. For example:
+
+Terminal window
+npx hardhat verify --contract contracts/Example.sol:ExampleContract <other args>
+
+HHE80011: Invalid library address
+The address provided for a linked library is invalid. Please make sure the address is a valid Ethereum address.
+
+HHE80012: Library not found in contract
+A library was specified using the “—libraries” option, but the selected contract does not use it.
+
+If the contract uses external libraries, verify that the provided name matches the fully qualified name (FQN) of one of them, such as:
+
+  contracts/Math.sol:SafeMath
+
+HHE80013: Library name is ambiguous
+The specified library name matches multiple libraries used by the contract.
+
+To resolve the ambiguity, provide the fully qualified library name in the format:
+
+  path/to/LibraryFile.sol:LibraryName
+
+HHE80014: Duplicated library entry
+The same library was specified more than once using both its short name and fully qualified name (FQN) in the --libraries option.
+
+Only one form should be used for each library. Remove one of the entries and try again.
+
+HHE80015: Library address mismatch
+Some libraries have conflicting addresses between what you provided and what was detected in the deployed bytecode.
+
+Please ensure each library address is correct. You can remove entries from your input to use autodetection instead.
+
+HHE80016: Missing library addresses
+One or more libraries required by the contract could not be detected from the deployed bytecode.
+
+This usually happens when a library is only referenced in the contract’s constructor. To resolve this, provide the missing library addresses using the “—libraries” option.
+
+HHE80017: Invalid constructor argument type
+One of the arguments passed to the contract’s constructor has an invalid JavaScript type.
+
+This error occurs when you supply a value whose runtime type doesn’t match the expected Solidity type. For example, you must pass a JS string for a Solidity string parameter.
+
+Please verify that each constructor argument is the correct JS type.
+
+HHE80018: Invalid constructor argument count
+The number of arguments provided to the contract’s constructor doesn’t match the number of parameters defined in its ABI.
+
+This error occurs when you supply a different number of arguments than the constructor expects. For example, if the constructor expects two parameters but you provided three.
+
+Please verify that you pass the exact number of arguments required by the constructor.
+
+HHE80019: Constructor argument value out of bounds
+One of the arguments passed to the contract’s constructor is outside the allowed range for its Solidity type (for example, passing 256 to a uint8 parameter).
+
+This error occurs when a value exceeds the maximum or minimum allowed for the specified Solidity type.
+
+Please ensure all argument values fit within the valid range for their respective Solidity types.
+
+HHE80020: Constructor arguments encoding failed
+The constructor arguments provided for the contract could not be encoded correctly. Please review the provided arguments and ensure they match the expected arguments defined in the contract’s ABI.
+
+HHE80021: Missing bytecode at address
+The explorer responded that the specified address does not contain bytecode. This usually means the contract was deployed recently and the explorer’s backend has not yet indexed it.
+
+Please wait a short time (e.g., 30-60 seconds) and try again. If you’re running this from a script, wait for at least five confirmations before verifying.
+
+HHE80022: Contract already verified
+The block explorer responded that the contract is already verified.
+
+This typically occurs if you used the “—force” flag and the explorer does not support re-verification, or if the contract was previously verified with a full match.
+
+HHE80023: Contract verification request failed
+The block explorer returned an error when attempting to verify the contract’s source code.
+
+Please check the returned message for details.
+
+HHE80024: Contract verification status polling failed
+The block explorer returned a failure status when checking the verification status. Verification may still succeed; please check manually.
+
+HHE80025: Unexpected API response during contract verification
+The block explorer API returned a message that doesn’t match the expected format. This may indicate a change in the API or an issue with the request.
+
+Please report this issue to the Hardhat team.
+
+HHE80026: Contract verification failed
+Unable to verify the contract on the block explorer.
+
+If your contract uses libraries whose addresses cannot be detected automatically, make sure you are providing the correct address for each undetectable library.
+
+HHE80027: Block explorer not configured
+Block explorer information is missing in your chain descriptor configuration.
+
+To enable contract verification, add an entry for the verification provider in the blockExplorers field of the relevant chain descriptor. You can override the default chain descriptor by providing your own chainDescriptors object in the Hardhat config, with the following structure:
+
+chainDescriptors: {
+  <chainId>: {
+    name: <name>,
+    blockExplorers: {
+      blockscout: { name: "Blockscout", url: <blockscout-url> apiUrl: <blockscout-api-url> };
+      etherscan: { name: "Etherscan", url: <etherscan-url> apiUrl: <etherscan-api-url> };
+    }
+  }
+}
+
+HHE80028: Address is not a contract
+The block explorer responded that the address does not contain a contract. This usually means the address is incorrect, the contract was not deployed on the selected network, or there is a temporary issue with the block explorer not updating its index. Please verify the address and network, and try again later if necessary.
+
+HHE80029: Block explorer API key is empty
+The provided API key for the block explorer is empty. This can happen in the following cases:
+
+No “apiKey” field is configured in the hardhat config.
+The “apiKey” is explicitly set to an empty string in the Hardhat config.
+The “apiKey” is assigned to a config variable that resolves to an empty string at runtime.
+To resolve this, set a valid non-empty API key in your Hardhat config, then try again.
+
+Validation errors
+HHE80100: Invalid address
+The value is not a valid address
+
+HHE80101: Mutually exclusive constructor arguments
+The parameters constructorArgs and constructorArgsPath are mutually exclusive. Please provide only one of them.
+
+HHE80102: Invalid constructor arguments module
+The module specified by the constructorArgsPath parameter must default export an array of constructor arguments.
+
+Example:
+
+export default ["arg1", "arg2", ...];
+
+HHE80103: Module not found
+The specified module could not be found. Please check the path and try again.
+
+HHE80104: Module syntax error
+The specified module has a syntax error. Please fix the error and try again.
+
+HHE80105: Import module failed
+The specified module could not be imported.
+
+HHE80106: Invalid libraries module
+The module specified by the librariesPath parameter must default export a record of libraries.
+
+Example:
+
+export default { lib1: "0x...", lib2: "0x...", ... };
+
+HHE80107: Invalid verification provider
+The specified verification provider is not supported. Please use one of the supported providers.

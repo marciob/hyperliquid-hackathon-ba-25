@@ -7,7 +7,7 @@ async function main() {
   console.log("Deployer:", await deployer.getAddress());
 
   // Real HyperEVM addresses (same as your Ignition module)
-  const UBTC = "0x9fdbda0a5e284c32744d2f17ee5c74b284993463";
+  const HYPE = process.env.HYPE_ADDRESS || "0x0000000000000000000000000000000000000000";
   const USDXL = "0xca79db4b49f608ef54a5cb813fbed3a6387bc645";
   const HYPURR_POOL = "0xceCcE0EB9DD2Ef7996e01e25DD70e461F918A14b";
 
@@ -23,7 +23,7 @@ async function main() {
     deployer
   );
   const vault = await VaultFactory.deploy(
-    UBTC,
+    HYPE,
     USDXL,
     HYPURR_POOL,
     MOCK_ROUTER,

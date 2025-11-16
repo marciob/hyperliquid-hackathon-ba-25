@@ -40,7 +40,7 @@ contract LoopGuardVault is ReentrancyGuard {
     // Immutable configuration
     // -----------------------------------------------------------------------
 
-    address public immutable collateral; // UBTC
+    address public immutable collateral; // HYPE
     address public immutable debt; // USDXL
     IHypurrFiPool public immutable pool;
     ISwapRouter public immutable router;
@@ -78,7 +78,7 @@ contract LoopGuardVault is ReentrancyGuard {
     uint256 public totalShares;
     mapping(address => uint256) public balanceOf;
 
-    /// @notice Approximate principal tracking (ignores interest / yield). Principal UBTC supplied by the vault into HypurrFi.
+    /// @notice Approximate principal tracking (ignores interest / yield). Principal HYPE supplied by the vault into HypurrFi.
     /// @dev These are NOT exact NAV. Frontends should prefer HypurrFi base data
     ///      from getVaultAccountData() when computing real-time PnL / HF / TVL.
     uint256 public collateralPrincipal;
@@ -179,9 +179,11 @@ contract LoopGuardVault is ReentrancyGuard {
         uint256 borrowAmount = (availableBorrowsBase * BORROW_BPS) /
             BPS_DENOMINATOR;
 
-        // If no router is configured, skip borrowing to avoid creating un-hedged debt.
-        // TODO: allow partial borrow when beneficial even without swap (advanced).
-        if (address(router) == address(0)) borrowAmount = 0;
+        // If no router is configured, skip borrowing here to avoid unhedged debt on deposit.
+        // Use depositAndBorrowNoSwap for a borrow-only path if needed.
+        if (address(router) == address(0)) {
+            borrowAmount = 0;
+        }
 
         if (borrowAmount > 0) {
             // 4) Borrow USDXL
@@ -254,6 +256,83 @@ contract LoopGuardVault is ReentrancyGuard {
         );
     }
 
+    /// @notice Deposit collateral and (optionally) borrow USDXL without swapping.
+    /// @dev For mainnet demos without a DEX router. Ensures HF after >= hfSoftFloor and > 1.
+    /// @param amountIn collateral amount to deposit
+    /// @param borrowBps BPS of availableBorrowsBase to take as USDXL debt (capped internally)
+    function depositAndBorrowNoSwap(
+        uint256 amountIn,
+        uint256 borrowBps
+    ) external nonReentrant {
+        require(!depositsPaused, "Deposits paused");
+        require(amountIn > 0, "amountIn = 0");
+
+        uint256 prevCollateralPrincipal = collateralPrincipal;
+        uint256 _totalShares = totalShares;
+
+        // Block new deposits if vault HF < hard floor (when already active)
+        (, , , , , uint256 hfBeforeDeposit) = pool.getUserAccountData(
+            address(this)
+        );
+        require(
+            hfBeforeDeposit == 0 || hfBeforeDeposit >= hfHardFloor,
+            "HF below hard floor"
+        );
+
+        // 1) Pull collateral
+        _safeTransferFrom(collateral, msg.sender, address(this), amountIn);
+
+        // 2) Supply to HypurrFi
+        _ensureMaxApproval(collateral, address(pool), amountIn);
+        pool.supply(collateral, amountIn, address(this), REFERRAL_CODE);
+        collateralPrincipal = prevCollateralPrincipal + amountIn;
+
+        // 3) Compute borrow amount (capped by BORROW_BPS)
+        (, , uint256 availableBorrowsBase, , , ) = pool.getUserAccountData(
+            address(this)
+        );
+        uint256 bps = borrowBps > BORROW_BPS ? BORROW_BPS : borrowBps;
+        uint256 borrowAmount = (availableBorrowsBase * bps) / BPS_DENOMINATOR;
+
+        if (borrowAmount > 0) {
+            // 4) Borrow USDXL to the vault; do NOT swap
+            pool.borrow(
+                debt,
+                borrowAmount,
+                INTEREST_RATE_MODE,
+                REFERRAL_CODE,
+                address(this)
+            );
+            debtPrincipal += borrowAmount;
+        }
+
+        // 5) Mint shares (same as depositAndLoop)
+        uint256 sharesToMint;
+        if (_totalShares == 0 || prevCollateralPrincipal == 0) {
+            sharesToMint = amountIn;
+        } else {
+            sharesToMint = (amountIn * _totalShares) / prevCollateralPrincipal;
+        }
+        require(sharesToMint > 0, "shares=0");
+        totalShares = _totalShares + sharesToMint;
+        balanceOf[msg.sender] += sharesToMint;
+
+        // 6) Post HF safety: if we borrowed, HF must remain >= soft floor and > 1
+        (, , , , , uint256 hfAfter) = pool.getUserAccountData(address(this));
+        if (borrowAmount > 0) {
+            require(hfAfter >= hfSoftFloor && hfAfter > 1e18, "HF below soft");
+        }
+
+        // Reuse event
+        emit DepositAndLoop(
+            msg.sender,
+            amountIn,
+            borrowAmount,
+            sharesToMint,
+            hfAfter
+        );
+    }
+
     /// @notice Withdraw by burning shares; unwinds proportional part of position (approx)
     function withdraw(uint256 shares) external nonReentrant {
         require(shares > 0, "shares=0");
@@ -307,7 +386,36 @@ contract LoopGuardVault is ReentrancyGuard {
         uint256 userAmountOut = hypeFromPool;
         uint256 repaid = 0;
 
-        // 3) Swap part of withdrawn HYPE -> USDXL and repay
+        // 3) If the vault already holds USDXL (e.g., from borrow-only flows), repay up to
+        // the user's proportional share of debt before attempting any swap.
+        if (debtPrincipal > 0) {
+            uint256 proportionalDebtToken = (debtPrincipal * fractionBps) /
+                BPS_DENOMINATOR;
+            uint256 usdBal = IERC20(debt).balanceOf(address(this));
+            uint256 repayNow = usdBal < proportionalDebtToken
+                ? usdBal
+                : proportionalDebtToken;
+            if (repayNow > 0) {
+                _ensureMaxApproval(debt, address(pool), repayNow);
+                uint256 repaidNow = pool.repay(
+                    debt,
+                    repayNow,
+                    INTEREST_RATE_MODE,
+                    address(this)
+                );
+                if (repaidNow > 0) {
+                    if (repaidNow >= debtPrincipal) {
+                        debtPrincipal = 0;
+                    } else {
+                        debtPrincipal -= repaidNow;
+                    }
+                    // Reduce the amount of HYPE we need to sell by equivalent share approximation:
+                    // keep tokensToSell as-is since it's a base approximation; repaying now only helps HF.
+                }
+            }
+        }
+
+        // 4) Swap part of withdrawn HYPE -> USDXL and repay
         if (tokensToSell > 0 && address(router) != address(0)) {
             _ensureMaxApproval(collateral, address(router), tokensToSell);
             address[] memory path = new address[](2);
@@ -371,6 +479,37 @@ contract LoopGuardVault is ReentrancyGuard {
         }
 
         require(hfBefore > 1e18, "HF already < 1");
+
+        // If the vault holds any USDXL already (e.g., from borrow-only flows), repay it now.
+        uint256 repaidPre = 0;
+        uint256 usdPreBal = IERC20(debt).balanceOf(address(this));
+        if (usdPreBal > 0) {
+            _ensureMaxApproval(debt, address(pool), usdPreBal);
+            repaidPre = pool.repay(
+                debt,
+                usdPreBal,
+                INTEREST_RATE_MODE,
+                address(this)
+            );
+            if (repaidPre > 0) {
+                if (repaidPre >= debtPrincipal) {
+                    debtPrincipal = 0;
+                } else {
+                    debtPrincipal -= repaidPre;
+                }
+            }
+        }
+
+        // Without a router, selling collateral would not repay debt and could worsen HF.
+        if (address(router) == address(0)) {
+            (, , , , , uint256 hfAfterOnlyRepay) = pool.getUserAccountData(
+                address(this)
+            );
+            require(hfAfterOnlyRepay >= hfBefore, "HF not improved");
+            require(hfAfterOnlyRepay >= hfHardFloor, "HF below hard floor");
+            emit Rebalance(msg.sender, repaidPre, 0, hfBefore, hfAfterOnlyRepay);
+            return;
+        }
 
         uint256 deleverageBps = hfBefore < hfHardFloor
             ? HARD_REBALANCE_BPS
@@ -455,7 +594,7 @@ contract LoopGuardVault is ReentrancyGuard {
 
         emit Rebalance(
             msg.sender,
-            repaid,
+            repaid + repaidPre,
             collateralToWithdraw,
             hfBefore,
             hfAfter
